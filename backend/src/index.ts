@@ -3,14 +3,23 @@
  * Express server with CORS, authentication, and API routes
  */
 
+import * as dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name in ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables FIRST, before any other imports
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
 import express from 'express';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
 import { healthCheck } from './api/health';
+import { validateJWT } from './lib/auth';
+import { watchTimeHandler, pullsHandler, craftHandler, inventoryHandler, recipesHandler } from './api/handlers';
+import { devTokensHandler, regenerateTokensHandler } from './api/dev';
 import { seed } from './db/seed';
-
-// Load environment variables
-dotenv.config({ path: '../.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,12 +42,18 @@ app.use((req, res, next) => {
 // Routes
 app.get('/health', healthCheck);
 
-// API routes will be added here as we implement them
-// app.post('/api/watch-time', validateJWT, watchTimeHandler);
-// app.post('/api/pulls', validateJWT, pullsHandler);
-// app.post('/api/craft', validateJWT, craftHandler);
-// app.get('/api/inventory', validateJWT, inventoryHandler);
-// app.get('/api/recipes', validateJWT, recipesHandler);
+// Development routes (only in dev mode)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/dev/tokens', devTokensHandler);
+  app.post('/api/dev/regenerate-tokens', regenerateTokensHandler);
+}
+
+// API routes with JWT authentication
+app.post('/api/watch-time', validateJWT, watchTimeHandler);
+app.post('/api/pulls', validateJWT, pullsHandler);
+app.post('/api/craft', validateJWT, craftHandler);
+app.get('/api/inventory', validateJWT, inventoryHandler);
+app.get('/api/recipes', validateJWT, recipesHandler);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

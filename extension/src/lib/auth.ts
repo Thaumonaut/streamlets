@@ -47,11 +47,21 @@ export function parseJWTPayload(token: string): TwitchJWT | null {
 /**
  * Get JWT token for API requests
  * Returns stored token or extracts from URL
+ * In development, checks localStorage first (for local testing)
  */
 let cachedToken: string | null = null;
 
 export function getAuthToken(): string | null {
   if (cachedToken) return cachedToken;
+
+  // In development, check localStorage for dev token
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const devToken = localStorage.getItem('dev_auth_token');
+    if (devToken) {
+      cachedToken = devToken;
+      return devToken;
+    }
+  }
 
   const token = extractTwitchJWT();
   if (token) {

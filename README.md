@@ -37,11 +37,12 @@ project-puff/
 
 3. **Set up database:**
    ```bash
-   # Generate migrations
-   pnpm run db:generate
+   # Option 1: Push schema directly (recommended for MVP)
+   pnpm run db:push
 
-   # Run migrations
-   pnpm run db:migrate
+   # Option 2: Generate and run migrations (for production)
+   pnpm run db:generate  # Generate migration files
+   pnpm run db:migrate   # Apply migrations
 
    # Seed test data
    pnpm run db:seed

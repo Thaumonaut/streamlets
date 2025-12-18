@@ -18,6 +18,12 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+// Debug logging for development
+if (import.meta.env.DEV) {
+  console.log('[API] Base URL:', API_BASE_URL);
+  console.log('[API] VITE_API_BASE_URL env:', import.meta.env.VITE_API_BASE_URL);
+}
+
 /**
  * Make authenticated API request
  */
@@ -31,7 +37,12 @@ async function apiRequest<T>(
     throw new Error('No authentication token available');
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${endpoint}`;
+  if (import.meta.env.DEV) {
+    console.log('[API] Requesting:', url);
+  }
+
+  const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

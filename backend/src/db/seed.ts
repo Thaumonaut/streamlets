@@ -19,8 +19,14 @@ import {
 } from '../lib/recipes';
 import { sql } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config({ path: '../../.env' });
+// Get the directory name in ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 async function seed() {
   console.log('🌱 Starting database seeding...');
@@ -80,14 +86,18 @@ async function seed() {
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     throw error;
-  } finally {
-    process.exit(0);
   }
 }
 
 // Run seed if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seed();
+  seed().then(() => {
+    console.log('✅ Seeding complete, exiting...');
+    process.exit(0);
+  }).catch((error) => {
+    console.error('❌ Seeding failed:', error);
+    process.exit(1);
+  });
 }
 
 export { seed };

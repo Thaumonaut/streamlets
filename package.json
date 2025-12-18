@@ -3,11 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "description": "Streamlets Phase 1 MVP - Single-Tenant Gacha Extension for Twitch",
-  "workspaces": [
-    "extension",
-    "backend",
-    "shared"
-  ],
   "scripts": {
     "dev:extension": "pnpm --filter extension dev",
     "dev:backend": "pnpm --filter backend dev",

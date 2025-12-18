@@ -3,6 +3,7 @@
   import { getInventory } from '$lib/api';
   import { updateViewerState, isLoading, errorMessage, setError } from '$lib/store';
   import { parseJWTPayload, getAuthToken } from '$lib/auth';
+  import DevSetup from '../components/DevSetup.svelte';
 
   let initialized = false;
 
@@ -56,6 +57,8 @@
       <p class="dev-note">🚧 Under construction - Phase 1 MVP</p>
     </div>
   {/if}
+  
+  <DevSetup />
 </main>
 
 <style>

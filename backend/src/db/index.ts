@@ -4,7 +4,16 @@
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import * as dotenv from 'dotenv';
 import * as schema from './schema';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name in ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables (path relative to backend/ directory)
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 const connectionString = process.env.DATABASE_URL;
 
