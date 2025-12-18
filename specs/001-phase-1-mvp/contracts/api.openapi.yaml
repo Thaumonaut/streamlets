@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: Streamlets Phase 1 MVP API
+  version: 1.0.0
+  description: |
+    REST API for the Streamlets Twitch Extension Phase 1 MVP.
+    Supports watch-time currency earning, tiered gacha pulls, character crafting, and collection management.
+
+servers:
+  - url: https://api.streamlets.local
+    description: Local development (via proxy)
+  - url: https://streamlets-api.vercel.app
+    description: Production deployment
+
+security:
+  - TwitchJWT: []
+
+tags:
+  - name: watch-time
+    description: Currency earning via watch-time heartbeats
+  - name: pulls
+    description: Gacha pull system (single/5-pull/10-pull)
+  - name: crafting
+    description: Character crafting from materials
+  - name: inventory
+    description: Viewer state (currency, materials, characters)
+  - name: recipes
+    description: Available recipes and craftability
+
+paths:
+  /api/watch-time:
+    post:
+      tags: [watch-time]
+      summary: Award currency for watch time
+      description: |
+        Client sends heartbeat every 60 seconds while extension is open and stream is being watched.
+        Server validates JWT, checks stream is live, and awards 2 Dust per heartbeat (10 Dust per 5 minutes).
+      operationId: awardWatchTime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channelId]
+              properties:
+                channelId:
+                  type: string
+                  description: Twitch channel ID from extension context
+                  example: "12345678"
+      responses:
+        '200':
+          description: Currency awarded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, newBalance, awarded]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  newBalance:
+                    type: integer
+                    description: Updated Dust balance
+                    example: 252
+                  awarded:
+                    type: integer
+                    description: Dust awarded this heartbeat
+                    example: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Not eligible (rate limited, stream offline, or invalid JWT)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Stream is not live"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/pulls:
+    post:
+      tags: [pulls]
+      summary: Execute gacha pull
+      description: |
+        Perform a pull (single/5-pull/10-pull) that:
+        1. Deducts currency cost (50/225/400 Dust)
+        2. Rolls materials with rarity distribution (60% common, 25% uncommon, 12% rare, 3% legendary)
+        3. Rolls bonus character chances (~5% per pull)
+        4. Returns results for client-side animation
+      operationId: executePull
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier:
+                  type: string
+                  enum: [single, '5', '10']
+                  description: Pull tier
+                  example: '5'
+      responses:
+        '200':
+          description: Pull executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, newBalance, materials, characters]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  newBalance:
+                    type: integer
+                    description: Remaining Dust balance
+                    example: 25
+                  materials:
+                    type: array
+                    description: Materials received (1-3 for single, 10-20 for 5-pull, up to 50 for 10-pull)
+                    items:
+                      type: object
+                      required: [materialId, name, rarity, quantity]
+                      properties:
+                        materialId:
+                          type: string
+                          example: "FLUFF"
+                        name:
+                          type: string
+                          example: "Fluff"
+                        rarity:
+                          type: string
+                          enum: [common, uncommon, rare, legendary]
+                          example: "common"
+                        quantity:
+                          type: integer
+                          example: 3
+                  characters:
+                    type: array
+                    description: Bonus characters received (empty if no bonus drops)
+                    items:
+                      $ref: '#/components/schemas/CharacterInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          description: Insufficient currency
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Insufficient Dust (need 225, have 50)"
+        '429':
+          description: Rate limited (minimum 2 seconds between pulls)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Please wait 1.2 seconds before next pull"
+
+  /api/craft:
+    post:
+      tags: [crafting]
+      summary: Craft character from recipe
+      description: |
+        Craft a character by consuming required materials.
+        Transaction is atomic: all materials deducted or none.
+        Returns newly created character with unique serial number.
+      operationId: craftCharacter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipeId]
+              properties:
+                recipeId:
+                  type: string
+                  description: Recipe identifier
+                  example: "RECIPE_GPUFF"
+      responses:
+        '200':
+          description: Character crafted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, character, remainingMaterials]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  character:
+                    $ref: '#/components/schemas/CharacterInstance'
+                  remainingMaterials:
+                    type: array
+                    description: Updated material inventory
+                    items:
+                      $ref: '#/components/schemas/MaterialInventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          description: Insufficient materials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Insufficient materials"
+                  missing:
+                    type: array
+                    description: Materials still needed
+                    items:
+                      type: object
+                      properties:
+                        materialId:
+                          type: string
+                          example: "SPARK"
+                        required:
+                          type: integer
+                          example: 5
+                        owned:
+                          type: integer
+                          example: 2
+
+  /api/inventory:
+    get:
+      tags: [inventory]
+      summary: Get viewer's complete state
+      description: |
+        Returns viewer's currency balance, material inventory, and character collection.
+        Used for initial load and after operations to sync client state.
+      operationId: getInventory
+      responses:
+        '200':
+          description: Inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, viewer, materials, characters]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  viewer:
+                    type: object
+                    required: [twitchId, username, dustBalance]
+                    properties:
+                      twitchId:
+                        type: string
+                        example: "12345678"
+                      username:
+                        type: string
+                        example: "viewer123"
+                      dustBalance:
+                        type: integer
+                        example: 250
+                  materials:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaterialInventoryItem'
+                  characters:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CharacterInstance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/recipes:
+    get:
+      tags: [recipes]
+      summary: Get available recipes with craftability
+      description: |
+        Returns all recipes with viewer's material ownership to determine craftability.
+        Used to display recipe list showing which characters can be crafted.
+      operationId: getRecipes
+      responses:
+        '200':
+          description: Recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, recipes]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  recipes:
+                    type: array
+                    items:
+                      type: object
+                      required: [recipeId, charId, charName, charRarity, materials, craftable]
+                      properties:
+                        recipeId:
+                          type: string
+                          example: "RECIPE_GPUFF"
+                        charId:
+                          type: string
+                          example: "GPUFF"
+                        charName:
+                          type: string
+                          example: "Golden Puff"
+                        charRarity:
+                          type: string
+                          enum: [common, rare, epic, legendary]
+                          example: "common"
+                        materials:
+                          type: array
+                          items:
+                            type: object
+                            required: [materialId, name, required, owned]
+                            properties:
+                              materialId:
+                                type: string
+                                example: "FLUFF"
+                              name:
+                                type: string
+                                example: "Fluff"
+                              required:
+                                type: integer
+                                example: 50
+                              owned:
+                                type: integer
+                                example: 42
+                        craftable:
+                          type: boolean
+                          description: True if viewer has all required materials
+                          example: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    TwitchJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Twitch Extension JWT token from URL fragment.
+        Contains viewer_id, channel_id, and extension metadata.
+
+  schemas:
+    CharacterInstance:
+      type: object
+      required: [serialNumber, charId, name, rarity, acquisitionMethod, createdAt]
+      properties:
+        serialNumber:
+          type: string
+          description: Globally unique serial (format S1-{CHAR_ID}-{5-digit})
+          example: "S1-GPUFF-00047"
+        charId:
+          type: string
+          description: Character definition identifier
+          example: "GPUFF"
+        name:
+          type: string
+          description: Character display name
+          example: "Golden Puff"
+        rarity:
+          type: string
+          enum: [common, rare, epic, legendary]
+          example: "common"
+        acquisitionMethod:
+          type: string
+          enum: [pull, craft]
+          description: How character was obtained
+          example: "craft"
+        createdAt:
+          type: string
+          format: date-time
+          description: When character was obtained
+          example: "2025-12-18T14:30:00Z"
+
+    MaterialInventoryItem:
+      type: object
+      required: [materialId, name, rarity, quantity]
+      properties:
+        materialId:
+          type: string
+          example: "FLUFF"
+        name:
+          type: string
+          example: "Fluff"
+        rarity:
+          type: string
+          enum: [common, uncommon, rare, legendary]
+          example: "common"
+        quantity:
+          type: integer
+          description: Number owned
+          example: 42
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid tier (must be 'single', '5', or '10')"
+
+    Unauthorized:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid or expired JWT token"
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Rate limit exceeded"
+              retryAfter:
+                type: integer
+                description: Seconds to wait before retry
+                example: 2

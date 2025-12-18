@@ -1,0 +1,29 @@
+{
+  "name": "project-puff",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Streamlets Phase 1 MVP - Single-Tenant Gacha Extension for Twitch",
+  "workspaces": [
+    "extension",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev:extension": "pnpm --filter extension dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "build:extension": "pnpm --filter extension build",
+    "build:backend": "pnpm --filter backend build",
+    "build": "pnpm run build:extension && pnpm run build:backend",
+    "db:generate": "pnpm --filter backend db:generate",
+    "db:migrate": "pnpm --filter backend db:migrate",
+    "db:seed": "pnpm --filter backend db:seed",
+    "db:studio": "pnpm --filter backend db:studio",
+    "lint": "pnpm run -r lint",
+    "type-check": "pnpm run -r type-check"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
