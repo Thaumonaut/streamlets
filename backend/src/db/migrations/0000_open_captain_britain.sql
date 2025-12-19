@@ -131,3 +131,21 @@ DO $$ BEGIN
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
+--> statement-breakpoint
+CREATE SEQUENCE IF NOT EXISTS char_gpuff_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS char_cbird_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS char_starf_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS char_cowl_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS char_phoenix_seq START 1;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION generate_serial(p_char_id VARCHAR) RETURNS VARCHAR AS $$
+DECLARE
+  serial_num INTEGER;
+BEGIN
+  -- Get next sequence value (sequence name: char_{lowercase_char_id}_seq)
+  EXECUTE format('SELECT nextval(%L)', 'char_' || lower(p_char_id) || '_seq') INTO serial_num;
+
+  -- Format: S1-CHARDEF-00047 (zero-padded to 5 digits)
+  RETURN 'S1-' || p_char_id || '-' || LPAD(serial_num::TEXT, 5, '0');
+END;
+$$ LANGUAGE plpgsql;
