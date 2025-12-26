@@ -10,7 +10,7 @@
 // Domain Enums
 // ============================================================================
 
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type CharacterRarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type PullTier = 'single' | '5' | '10';
 export type AcquisitionMethod = 'pull' | 'craft';
@@ -33,7 +33,7 @@ export interface MaterialDefinition {
   id: string; // e.g., "FLUFF", "SPARK", "ESSENCE", "CORE"
   name: string; // e.g., "Fluff", "Cosmic Dust"
   rarity: Rarity;
-  pointValue: 1 | 5 | 25 | 100; // Material point system
+  pointValue: 1 | 5 | 25 | 50 | 100; // Material point system
   description?: string;
   iconUrl?: string;
 }
@@ -176,7 +176,8 @@ export const MATERIAL_RARITY_DISTRIBUTION = {
   common: 0.60,     // 60%
   uncommon: 0.25,   // 25%
   rare: 0.12,       // 12%
-  legendary: 0.03,  // 3%
+  epic: 0.03,       // 3%
+  legendary: 0.0,   // 0% (uses pity system)
 } as const;
 
 export const BONUS_CHARACTER_CHANCE = 0.05; // 5% per pull
@@ -228,6 +229,7 @@ export function isRarity(value: unknown): value is Rarity {
     value === 'common' ||
     value === 'uncommon' ||
     value === 'rare' ||
+    value === 'epic' ||
     value === 'legendary'
   );
 }

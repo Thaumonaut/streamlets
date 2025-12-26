@@ -1,99 +1,117 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: Streamlets Phase 1 MVP API
+  title: Phase 1 MVP - Gacha Extension API
   version: 1.0.0
   description: |
-    REST API for the Streamlets Twitch Extension Phase 1 MVP.
-    Supports watch-time currency earning, tiered gacha pulls, character crafting, and collection management.
+    Backend API for single-tenant Twitch extension with gacha mechanics, crafting system, and collaborative quest/encounter gameplay.
+
+    **Features**:
+    - Tiered pull system (single/5-pull/10-pull) with material quality variants
+    - Deterministic crafting with point-based recipes
+    - Quest system with 4-state lifecycle and party formation
+    - Encounter system with collaborative HP reduction
+    - Character trait generation with deterministic seeding
+    - Auto-claim reward distribution
+
+    **Date**: 2025-12-19
+    **Branch**: 001-phase-1-mvp
 
 servers:
-  - url: https://api.streamlets.local
-    description: Local development (via proxy)
-  - url: https://streamlets-api.vercel.app
-    description: Production deployment
-
-security:
-  - TwitchJWT: []
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (TBD)
 
 tags:
-  - name: watch-time
-    description: Currency earning via watch-time heartbeats
-  - name: pulls
-    description: Gacha pull system (single/5-pull/10-pull)
-  - name: crafting
-    description: Character crafting from materials
+  - name: viewer
+    description: Viewer authentication and profile
+  - name: pull
+    description: Gacha pull operations
+  - name: craft
+    description: Character crafting
   - name: inventory
-    description: Viewer state (currency, materials, characters)
-  - name: recipes
-    description: Available recipes and craftability
+    description: Viewer inventory and collection
+  - name: quest
+    description: Quest creation and participation (2025-12-19)
+  - name: encounter
+    description: Collaborative boss encounters (2025-12-19)
 
 paths:
-  /api/watch-time:
+  /api/viewer/auth:
     post:
-      tags: [watch-time]
-      summary: Award currency for watch time
-      description: |
-        Client sends heartbeat every 60 seconds while extension is open and stream is being watched.
-        Server validates JWT, checks stream is live, and awards 2 Dust per heartbeat (10 Dust per 5 minutes).
-      operationId: awardWatchTime
+      tags: [viewer]
+      summary: Authenticate viewer with Twitch JWT
+      description: Creates or retrieves viewer profile based on Twitch ID from JWT
+      security:
+        - twitchJWT: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [channelId]
+              required: [twitchId]
               properties:
-                channelId:
+                twitchId:
                   type: string
-                  description: Twitch channel ID from extension context
+                  description: Twitch user ID from JWT
                   example: "12345678"
+                twitchUsername:
+                  type: string
+                  description: Optional display name
+                  example: "viewer123"
       responses:
         '200':
-          description: Currency awarded successfully
+          description: Viewer authenticated successfully
           content:
             application/json:
               schema:
-                type: object
-                required: [success, newBalance, awarded]
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  newBalance:
-                    type: integer
-                    description: Updated Dust balance
-                    example: 252
-                  awarded:
-                    type: integer
-                    description: Dust awarded this heartbeat
-                    example: 2
+                $ref: '#/components/schemas/Viewer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          description: Not eligible (rate limited, stream offline, or invalid JWT)
+
+  /api/inventory:
+    get:
+      tags: [inventory]
+      summary: Get viewer's complete inventory
+      description: Returns currency balance, material inventory (quality-aggregated), and character collection
+      security:
+        - twitchJWT: []
+      responses:
+        '200':
+          description: Inventory retrieved successfully
           content:
             application/json:
               schema:
                 type: object
+                required: [dustBalance, materials, characters]
                 properties:
-                  error:
-                    type: string
-                    example: "Stream is not live"
-        '429':
-          $ref: '#/components/responses/RateLimited'
+                  dustBalance:
+                    type: integer
+                    description: Current Dust currency
+                    example: 450
+                  materials:
+                    type: array
+                    description: Material stacks with quality breakdown
+                    items:
+                      $ref: '#/components/schemas/MaterialStack'
+                  characters:
+                    type: array
+                    description: Owned character instances
+                    items:
+                      $ref: '#/components/schemas/CharacterInstance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
-  /api/pulls:
+  /api/pull:
     post:
-      tags: [pulls]
-      summary: Execute gacha pull
+      tags: [pull]
+      summary: Execute a gacha pull
       description: |
-        Perform a pull (single/5-pull/10-pull) that:
-        1. Deducts currency cost (50/225/400 Dust)
-        2. Rolls materials with rarity distribution (60% common, 25% uncommon, 12% rare, 3% legendary)
-        3. Rolls bonus character chances (~5% per pull)
-        4. Returns results for client-side animation
-      operationId: executePull
+        Deducts Dust and returns materials (with quality) and possible bonus characters.
+        Pity system at 90 pulls with cubic scaling from pull 75-90.
+      security:
+        - twitchJWT: []
       requestBody:
         required: true
         content:
@@ -113,73 +131,44 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [success, newBalance, materials, characters]
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  newBalance:
-                    type: integer
-                    description: Remaining Dust balance
-                    example: 25
-                  materials:
-                    type: array
-                    description: Materials received (1-3 for single, 10-20 for 5-pull, up to 50 for 10-pull)
-                    items:
-                      type: object
-                      required: [materialId, name, rarity, quantity]
-                      properties:
-                        materialId:
-                          type: string
-                          example: "FLUFF"
-                        name:
-                          type: string
-                          example: "Fluff"
-                        rarity:
-                          type: string
-                          enum: [common, uncommon, rare, legendary]
-                          example: "common"
-                        quantity:
-                          type: integer
-                          example: 3
-                  characters:
-                    type: array
-                    description: Bonus characters received (empty if no bonus drops)
-                    items:
-                      $ref: '#/components/schemas/CharacterInstance'
+                $ref: '#/components/schemas/PullResult'
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '402':
-          description: Insufficient currency
+          description: Insufficient currency or invalid tier
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Insufficient Dust (need 225, have 50)"
-        '429':
-          description: Rate limited (minimum 2 seconds between pulls)
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/recipes:
+    get:
+      tags: [craft]
+      summary: Get all craftable recipes
+      description: Returns recipes with material requirements and craftability status for current viewer
+      security:
+        - twitchJWT: []
+      responses:
+        '200':
+          description: Recipes retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Please wait 1.2 seconds before next pull"
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipe'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /api/craft:
     post:
-      tags: [crafting]
-      summary: Craft character from recipe
+      tags: [craft]
+      summary: Craft a character
       description: |
-        Craft a character by consuming required materials.
-        Transaction is atomic: all materials deducted or none.
-        Returns newly created character with unique serial number.
-      operationId: craftCharacter
+        Consumes materials (greedy algorithm: highest quality first) and creates character instance with procedurally-generated traits.
+        Uses deterministic seeding for reproducibility.
+      security:
+        - twitchJWT: []
       requestBody:
         required: true
         content:
@@ -198,215 +187,607 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [success, character, remainingMaterials]
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  character:
-                    $ref: '#/components/schemas/CharacterInstance'
-                  remainingMaterials:
-                    type: array
-                    description: Updated material inventory
-                    items:
-                      $ref: '#/components/schemas/MaterialInventoryItem'
+                $ref: '#/components/schemas/CharacterInstance'
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '402':
-          description: Insufficient materials
+          description: Insufficient materials or invalid recipe
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Insufficient materials"
-                  missing:
-                    type: array
-                    description: Materials still needed
-                    items:
-                      type: object
-                      properties:
-                        materialId:
-                          type: string
-                          example: "SPARK"
-                        required:
-                          type: integer
-                          example: 5
-                        owned:
-                          type: integer
-                          example: 2
-
-  /api/inventory:
-    get:
-      tags: [inventory]
-      summary: Get viewer's complete state
-      description: |
-        Returns viewer's currency balance, material inventory, and character collection.
-        Used for initial load and after operations to sync client state.
-      operationId: getInventory
-      responses:
-        '200':
-          description: Inventory retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [success, viewer, materials, characters]
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  viewer:
-                    type: object
-                    required: [twitchId, username, dustBalance]
-                    properties:
-                      twitchId:
-                        type: string
-                        example: "12345678"
-                      username:
-                        type: string
-                        example: "viewer123"
-                      dustBalance:
-                        type: integer
-                        example: 250
-                  materials:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/MaterialInventoryItem'
-                  characters:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/CharacterInstance'
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/recipes:
+  /api/quests:
     get:
-      tags: [recipes]
-      summary: Get available recipes with craftability
-      description: |
-        Returns all recipes with viewer's material ownership to determine craftability.
-        Used to display recipe list showing which characters can be crafted.
-      operationId: getRecipes
+      tags: [quest]
+      summary: Get active quests (quest board)
+      description: Returns quests in PENDING or ACTIVE state with participant details
+      security:
+        - twitchJWT: []
       responses:
         '200':
-          description: Recipes retrieved successfully
+          description: Active quests retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [quest]
+      summary: Create a new quest
+      description: |
+        Creates quest in PENDING state with party formation timer.
+        Anti-exploit: 5-minute cooldown, max 3 simultaneous quests per viewer.
+      security:
+        - twitchJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [zoneId, tier, characterId]
+              properties:
+                zoneId:
+                  type: string
+                  enum: [FOREST, CAVE, MOUNTAIN]
+                  description: Quest zone
+                  example: "FOREST"
+                tier:
+                  type: string
+                  enum: [short, medium, long]
+                  description: Quest tier (affects duration, rewards, success rate)
+                  example: "medium"
+                characterId:
+                  type: integer
+                  description: Character instance ID to deploy
+                  example: 42
+      responses:
+        '201':
+          description: Quest created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quest'
+        '400':
+          description: Cooldown active, max quests reached, or character unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/quests/{questId}/join:
+    post:
+      tags: [quest]
+      summary: Join an existing quest
+      description: |
+        Adds viewer to quest party during PENDING phase.
+        Character becomes locked and unavailable for other activities.
+      security:
+        - twitchJWT: []
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Quest ID
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [characterId]
+              properties:
+                characterId:
+                  type: integer
+                  description: Character instance ID to deploy
+                  example: 47
+      responses:
+        '200':
+          description: Joined quest successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quest'
+        '400':
+          description: Quest not in PENDING state, party full, or character unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/quests/{questId}/start:
+    post:
+      tags: [quest]
+      summary: Force-start quest early (leader only)
+      description: |
+        Transitions quest from PENDING to ACTIVE before timer expires.
+        Only quest leader can force-start.
+      security:
+        - twitchJWT: []
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Quest ID
+          example: 1
+      responses:
+        '200':
+          description: Quest started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quest'
+        '403':
+          description: Not quest leader
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Quest not in PENDING state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/encounters/active:
+    get:
+      tags: [encounter]
+      summary: Get active encounters
+      description: Returns encounters in ACTIVE state with HP and participant stats
+      security:
+        - twitchJWT: []
+      responses:
+        '200':
+          description: Active encounters retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Encounter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/encounters/{encounterId}/attack:
+    post:
+      tags: [encounter]
+      summary: Attack an encounter
+      description: |
+        Deals damage to encounter based on character rarity.
+        Tracks total damage and attack count for MVP rewards.
+        Auto-claims rewards when encounter reaches 0 HP.
+      security:
+        - twitchJWT: []
+      parameters:
+        - name: encounterId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Encounter ID
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [characterId]
+              properties:
+                characterId:
+                  type: integer
+                  description: Character instance ID to deploy
+                  example: 42
+      responses:
+        '200':
+          description: Attack successful
           content:
             application/json:
               schema:
                 type: object
-                required: [success, recipes]
+                required: [damage, currentHp, state]
                 properties:
-                  success:
-                    type: boolean
-                    example: true
-                  recipes:
-                    type: array
-                    items:
-                      type: object
-                      required: [recipeId, charId, charName, charRarity, materials, craftable]
-                      properties:
-                        recipeId:
-                          type: string
-                          example: "RECIPE_GPUFF"
-                        charId:
-                          type: string
-                          example: "GPUFF"
-                        charName:
-                          type: string
-                          example: "Golden Puff"
-                        charRarity:
-                          type: string
-                          enum: [common, rare, epic, legendary]
-                          example: "common"
-                        materials:
-                          type: array
-                          items:
-                            type: object
-                            required: [materialId, name, required, owned]
-                            properties:
-                              materialId:
-                                type: string
-                                example: "FLUFF"
-                              name:
-                                type: string
-                                example: "Fluff"
-                              required:
-                                type: integer
-                                example: 50
-                              owned:
-                                type: integer
-                                example: 42
-                        craftable:
-                          type: boolean
-                          description: True if viewer has all required materials
-                          example: false
+                  damage:
+                    type: integer
+                    description: Damage dealt this attack
+                    example: 35
+                  currentHp:
+                    type: integer
+                    description: Encounter HP after attack
+                    example: 120
+                  state:
+                    type: string
+                    enum: [ACTIVE, SUCCESS]
+                    description: Encounter state (SUCCESS if defeated)
+                    example: "ACTIVE"
+                  rewards:
+                    type: object
+                    description: Auto-claimed rewards (only present if state=SUCCESS)
+                    properties:
+                      materials:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MaterialReward'
+                      mvpBonus:
+                        type: boolean
+                        description: Whether this viewer received MVP bonus
+                        example: true
+        '400':
+          description: Encounter not active or character unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
 components:
   securitySchemes:
-    TwitchJWT:
+    twitchJWT:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: |
-        Twitch Extension JWT token from URL fragment.
-        Contains viewer_id, channel_id, and extension metadata.
+      description: Twitch Extension JWT from EBS
 
   schemas:
+    Viewer:
+      type: object
+      required: [id, twitchId, dustBalance, createdAt]
+      properties:
+        id:
+          type: integer
+          description: Internal viewer ID
+          example: 1
+        twitchId:
+          type: string
+          description: Twitch user ID
+          example: "12345678"
+        twitchUsername:
+          type: string
+          nullable: true
+          description: Display name
+          example: "viewer123"
+        dustBalance:
+          type: integer
+          description: Current Dust currency
+          example: 250
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: "2025-12-19T10:00:00Z"
+
+    MaterialStack:
+      type: object
+      required: [materialId, name, rarity, pointValue, totalPoints, qualityBreakdown]
+      properties:
+        materialId:
+          type: string
+          description: Material identifier
+          example: "FLUFF"
+        name:
+          type: string
+          description: Display name
+          example: "Fluff"
+        rarity:
+          type: string
+          enum: [common, uncommon, rare, legendary]
+          description: Material rarity tier
+          example: "common"
+        pointValue:
+          type: integer
+          description: Base point value (before quality multiplier)
+          example: 1
+        totalPoints:
+          type: number
+          format: float
+          description: Total point value across all qualities
+          example: 105.5
+        qualityBreakdown:
+          type: object
+          description: Quantity per quality tier (2025-12-19)
+          required: [low, normal, high]
+          properties:
+            low:
+              type: integer
+              description: Quantity of Low quality (0.5x multiplier)
+              example: 10
+            normal:
+              type: integer
+              description: Quantity of Normal quality (1.0x multiplier)
+              example: 50
+            high:
+              type: integer
+              description: Quantity of High quality (2.0x multiplier)
+              example: 20
+
     CharacterInstance:
       type: object
-      required: [serialNumber, charId, name, rarity, acquisitionMethod, createdAt]
+      required: [id, serialNumber, charId, name, rarity, acquisitionMethod, traits, createdAt]
       properties:
+        id:
+          type: integer
+          description: Character instance ID
+          example: 42
         serialNumber:
           type: string
-          description: Globally unique serial (format S1-{CHAR_ID}-{5-digit})
+          description: Globally unique serial
           example: "S1-GPUFF-00047"
         charId:
           type: string
-          description: Character definition identifier
+          description: Character definition ID
           example: "GPUFF"
         name:
           type: string
-          description: Character display name
+          description: Character name
           example: "Golden Puff"
         rarity:
           type: string
           enum: [common, rare, epic, legendary]
+          description: Character rarity
           example: "common"
         acquisitionMethod:
           type: string
           enum: [pull, craft]
           description: How character was obtained
           example: "craft"
+        traits:
+          type: array
+          description: Procedurally-generated trait IDs (2025-12-19)
+          items:
+            type: string
+          example: ["SCAVENGER", "BRAVE"]
+        traitSeed:
+          type: string
+          description: Deterministic seed for reproducibility
+          example: "GPUFF-1734610000-a1b2c3d4"
         createdAt:
           type: string
           format: date-time
-          description: When character was obtained
-          example: "2025-12-18T14:30:00Z"
+          description: Acquisition timestamp
+          example: "2025-12-19T12:30:00Z"
 
-    MaterialInventoryItem:
+    PullResult:
       type: object
-      required: [materialId, name, rarity, quantity]
+      required: [materials, dustCost, remainingDust]
+      properties:
+        materials:
+          type: array
+          description: Materials received (with quality)
+          items:
+            $ref: '#/components/schemas/MaterialReward'
+        characters:
+          type: array
+          description: Bonus characters (if any)
+          items:
+            $ref: '#/components/schemas/CharacterInstance'
+        dustCost:
+          type: integer
+          description: Currency deducted
+          example: 225
+        remainingDust:
+          type: integer
+          description: Viewer's balance after pull
+          example: 225
+
+    MaterialReward:
+      type: object
+      required: [materialId, quantity, quality]
       properties:
         materialId:
           type: string
+          description: Material identifier
           example: "FLUFF"
-        name:
-          type: string
-          example: "Fluff"
-        rarity:
-          type: string
-          enum: [common, uncommon, rare, legendary]
-          example: "common"
         quantity:
           type: integer
-          description: Number owned
-          example: 42
+          description: Amount received
+          example: 3
+        quality:
+          type: string
+          enum: [low, normal, high]
+          description: Quality tier (2025-12-19)
+          example: "normal"
+
+    Recipe:
+      type: object
+      required: [id, charId, name, rarity, totalPointCost, materials, craftable]
+      properties:
+        id:
+          type: string
+          description: Recipe identifier
+          example: "RECIPE_GPUFF"
+        charId:
+          type: string
+          description: Character produced
+          example: "GPUFF"
+        name:
+          type: string
+          description: Character name
+          example: "Golden Puff"
+        rarity:
+          type: string
+          enum: [common, rare, epic, legendary]
+          description: Character rarity
+          example: "common"
+        totalPointCost:
+          type: integer
+          description: Total points required
+          example: 100
+        materials:
+          type: array
+          description: Material requirements
+          items:
+            type: object
+            required: [materialId, name, requiredPoints, ownedPoints]
+            properties:
+              materialId:
+                type: string
+                example: "FLUFF"
+              name:
+                type: string
+                example: "Fluff"
+              requiredPoints:
+                type: integer
+                description: Points needed
+                example: 50
+              ownedPoints:
+                type: number
+                format: float
+                description: Points viewer owns (quality-adjusted)
+                example: 45.5
+        craftable:
+          type: boolean
+          description: Whether viewer has sufficient materials
+          example: false
+
+    Quest:
+      type: object
+      required: [id, zoneId, zoneName, tier, state, leaderName, partySize, maxPartySize, participants]
+      properties:
+        id:
+          type: integer
+          description: Quest ID
+          example: 1
+        zoneId:
+          type: string
+          description: Quest zone
+          example: "FOREST"
+        zoneName:
+          type: string
+          description: Zone display name
+          example: "Enchanted Forest"
+        tier:
+          type: string
+          enum: [short, medium, long]
+          description: Quest tier
+          example: "medium"
+        state:
+          type: string
+          enum: [PENDING, ACTIVE, SUCCESS, FAILED, CLAIMED]
+          description: Quest lifecycle state (2025-12-19)
+          example: "PENDING"
+        leaderName:
+          type: string
+          description: Quest creator's username
+          example: "viewer123"
+        partySize:
+          type: integer
+          description: Current participants
+          example: 2
+        maxPartySize:
+          type: integer
+          description: Maximum participants
+          example: 3
+        pendingExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When PENDING phase ends (null if force-started)
+          example: "2025-12-19T12:31:00Z"
+        activeExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When quest auto-fails
+          example: "2025-12-19T12:51:00Z"
+        participants:
+          type: array
+          description: Party members
+          items:
+            type: object
+            required: [viewerId, characterId, joinedAt]
+            properties:
+              viewerId:
+                type: integer
+                example: 1
+              characterId:
+                type: integer
+                example: 42
+              joinedAt:
+                type: string
+                format: date-time
+                example: "2025-12-19T12:30:00Z"
+
+    Encounter:
+      type: object
+      required: [id, bossId, state, maxHp, currentHp, participantCount, expiresAt]
+      properties:
+        id:
+          type: integer
+          description: Encounter ID
+          example: 1
+        bossId:
+          type: string
+          description: Boss identifier
+          example: "DRAGON_01"
+        state:
+          type: string
+          enum: [PENDING, ACTIVE, SUCCESS, FAILED, CLAIMED]
+          description: Encounter lifecycle state (2025-12-19)
+          example: "ACTIVE"
+        maxHp:
+          type: integer
+          description: Starting health points
+          example: 500
+        currentHp:
+          type: integer
+          description: Remaining health points
+          example: 245
+        participantCount:
+          type: integer
+          description: Number of attackers
+          example: 8
+        expiresAt:
+          type: string
+          format: date-time
+          description: When encounter auto-fails
+          example: "2025-12-19T13:30:00Z"
+        topContributors:
+          type: array
+          description: Top 3 damage dealers (for MVP display)
+          items:
+            type: object
+            required: [viewerId, username, totalDamage]
+            properties:
+              viewerId:
+                type: integer
+                example: 1
+              username:
+                type: string
+                example: "viewer123"
+              totalDamage:
+                type: integer
+                example: 140
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "INSUFFICIENT_CURRENCY"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Not enough Dust. Required: 225, Available: 50"
 
   responses:
     BadRequest:
@@ -414,34 +795,14 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: "Invalid tier (must be 'single', '5', or '10')"
+            $ref: '#/components/schemas/Error'
 
     Unauthorized:
-      description: Missing or invalid JWT token
+      description: Missing or invalid Twitch JWT
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: "Invalid or expired JWT token"
-
-    RateLimited:
-      description: Too many requests
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: "Rate limit exceeded"
-              retryAfter:
-                type: integer
-                description: Seconds to wait before retry
-                example: 2
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "UNAUTHORIZED"
+            message: "Invalid or missing JWT token"

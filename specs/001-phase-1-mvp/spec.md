@@ -15,6 +15,19 @@
 - Q: How should the system handle viewers with multiple concurrent sessions? → A: Last-write-wins with optimistic updates (simple conflict resolution)
 - Q: How is watch time tracked and validated for currency earning? → A: Twitch native watch time API (if available)
 
+### Session 2025-12-19
+
+- Q: What quest duration options should be available? → A: Short (up to 5 minutes), Medium (15-20 minutes), Long (30-45 minutes)
+- Q: How should quest zones be managed? → A: System-managed default zones with optional streamer message customization for quest start/end
+- Q: Should pulls also have material quality variants? → A: Yes, all material sources (pulls, quests, encounters) include Low (0.5x), Normal (1.0x), and High (2.0x) quality variants
+- Q: Should character traits be visible before crafting? → A: No, traits are surprise mechanics revealed upon character acquisition
+- Q: How do encounters scale? → A: Encounter difficulty scales based on active chat size (viewers who chatted in last 5 minutes) and depends on character attack power and quality
+- Q: What state lifecycle should quests and encounters use? → A: 4-state model (PENDING → ACTIVE → SUCCESS/FAILED → CLAIMED) with explicit reward claim step
+- Q: How should material quality be tracked in inventory? → A: Separate stacks per quality in database, but UI shows consolidated view with quality breakdown on hover/click for clean presentation
+- Q: How long should the PENDING party formation phase last? → A: Variable by tier (Short: 30s, Medium: 60s, Long: 90s) with leader early-start option
+- Q: How should character trait generation work? → A: Deterministic seed from character ID + timestamp (reproducible for debugging)
+- Q: How should quest/encounter rewards transition to CLAIMED state? → A: Auto-claim with notification (immediate reward distribution, zero friction)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Passive Currency Earning (Priority: P1)
@@ -135,6 +148,86 @@ As a viewer performing pulls, I want an engaging visual experience during pulls,
 
 ---
 
+### User Story 8 - Quest Deployment & Participation (Priority: P2)
+
+As a viewer with collected characters, I want to deploy characters on quests to gather materials while watching streams, so that I have an active way to earn resources beyond passive pulling.
+
+**Why this priority**: Quests solve the "useless low-tier character" problem by giving all characters utility value. Creates active engagement and social gameplay without being required for progression (pulls still viable).
+
+**Independent Test**: Can be tested by deploying characters on quests, waiting for completion, and verifying material rewards. Delivers "active engagement and character utility value."
+
+**Acceptance Scenarios**:
+
+1. **Given** a viewer has at least one character, **When** they open the quest interface, **Then** they see available quest zones with duration options (Short: up to 5min, Medium: 15-20min, Long: 30-45min)
+2. **Given** a viewer selects 1-3 characters for deployment, **When** they start a quest, **Then** an invitation appears in the extension overlay for other viewers to join (silent, no chat spam)
+3. **Given** a quest is in progress, **When** other viewers click to join, **Then** the party size increases and success rate bonus is applied (+5% per joiner, max +50%)
+4. **Given** a quest completes successfully, **When** rewards are distributed, **Then** all participants receive quality-varied materials (Low/Normal/High quality)
+5. **Given** a viewer is leading a quest, **When** they watch ≥50% of the quest duration, **Then** they receive a +10% success rate bonus
+6. **Given** a viewer has characters on an active quest, **When** they try to deploy those same characters again, **Then** they see a message indicating characters are busy
+7. **Given** a quest fails, **When** rewards are distributed, **Then** participants receive small consolation rewards (10% of success yield)
+
+---
+
+### User Story 9 - Community Encounters (Priority: P2)
+
+As a viewer in an active channel, I want to participate in community encounters where we collectively attack a boss for better rewards, so that I experience shared gameplay moments with other viewers.
+
+**Why this priority**: Encounters encourage chat activity and social interaction, creating memorable stream moments. Secondary to core mechanics but high engagement value.
+
+**Independent Test**: Can be tested by triggering an encounter, having multiple test viewers attack, and verifying reward distribution based on contribution. Delivers "community engagement and social gameplay."
+
+**Acceptance Scenarios**:
+
+1. **Given** an encounter spawns in the channel, **When** viewers see the notification, **Then** they can deploy characters to attack the encounter
+2. **Given** an encounter is active, **When** a viewer deploys a character to attack, **Then** their attack power is calculated based on character rarity, traits, and level
+3. **Given** an encounter's HP depletes to zero, **When** victory occurs, **Then** all participants receive quality materials with bias toward Higher quality
+4. **Given** an encounter is defeated, **When** rewards are distributed, **Then** top 3 contributors receive bonus materials (MVP rewards)
+5. **Given** an encounter scales with active chat size, **When** more viewers chat, **Then** the encounter becomes stronger but rewards increase proportionally
+6. **Given** an encounter ends in defeat, **When** timeout occurs, **Then** all participants receive small consolation rewards
+7. **Given** a viewer attacks an encounter, **When** they try to attack again, **Then** they see a message that each character can only attack once per encounter
+
+---
+
+### User Story 10 - Material Quality System (Priority: P2)
+
+As a viewer accumulating materials, I want to see material quality variants in my inventory, so that I can strategically use higher quality materials to craft more efficiently.
+
+**Why this priority**: Quality adds strategic depth without complexity. Enables optimization layer for engaged players while remaining optional for casual play.
+
+**Independent Test**: Can be tested by performing pulls/quests and verifying materials drop with quality variants and are correctly tracked. Delivers "strategic depth and optimization gameplay."
+
+**Acceptance Scenarios**:
+
+1. **Given** a viewer receives materials from a pull, **When** viewing the results, **Then** each material displays its quality tier (Low/Normal/High) with visual indicators
+2. **Given** a viewer has materials of varying quality, **When** they view their inventory, **Then** materials are grouped by type and show quality breakdowns (e.g., "Wood: 50 Low, 120 Normal, 8 High")
+3. **Given** a viewer is crafting a character, **When** they select materials to consume, **Then** they see the quality-adjusted point values and can choose which quality to use
+4. **Given** a viewer has the "Scavenger" character trait active, **When** that character completes a quest, **Then** the High quality material chance increases by +10%
+5. **Given** a recipe requires 500 points of a material, **When** a viewer uses materials, **Then** they can mix qualities (e.g., 250 Normal + 125 High = 500 points)
+6. **Given** a viewer receives a Legendary material, **When** viewing its quality, **Then** it is always Normal or High quality (never Low)
+7. **Given** a viewer views material tooltips, **When** hovering, **Then** they see equivalent value conversions (e.g., "8 High = 16 Normal = 32 Low")
+
+---
+
+### User Story 11 - Character Traits System (Priority: P2)
+
+As a viewer collecting characters, I want each character to have unique procedural traits that affect gameplay, so that duplicate characters feel distinct and strategic collection matters.
+
+**Why this priority**: Traits create variety and optimization gameplay. Makes low-tier characters potentially valuable based on traits, supporting the quest system's character utility goals.
+
+**Independent Test**: Can be tested by crafting/pulling multiple characters and verifying traits are assigned, displayed, and affect gameplay mechanics. Delivers "collection variety and strategic optimization."
+
+**Acceptance Scenarios**:
+
+1. **Given** a viewer crafts or pulls a character, **When** they receive the character, **Then** the character has 1-3 randomly assigned traits based on rarity (Common: 1 trait, Legendary: 2-3 traits)
+2. **Given** a character has the "Speedster" trait, **When** deployed on a quest, **Then** the quest duration is reduced by 25%
+3. **Given** a character has the "Warrior" trait, **When** deployed in an encounter, **Then** its attack power is increased by +50%
+4. **Given** a character has the "Lucky Charm" trait, **When** in the viewer's inventory, **Then** the viewer's bonus character drop rate increases by +0.5%
+5. **Given** a viewer views a character card, **When** examining traits, **Then** tooltips explain the mechanical effects clearly
+6. **Given** a viewer has multiple copies of the same character, **When** comparing them, **Then** each may have different traits (creates strategic collecting)
+7. **Given** a viewer filters their collection by traits, **When** using the collection view, **Then** they can find all characters with specific traits (e.g., all "Scavenger" characters)
+
+---
+
 ### Edge Cases
 
 - Currency and material inventory have no enforced limits for MVP (database integer limits serve as de facto maximum)
@@ -212,6 +305,65 @@ As a viewer performing pulls, I want an engaging visual experience during pulls,
 - **FR-044**: Extension MUST provide navigation between currency/pull, crafting, inventory, and collection views
 - **FR-045**: Extension MUST display loading states during data fetches
 - **FR-046**: Extension MUST display user-friendly error messages when operations fail
+
+#### Quest System
+- **FR-047**: System MUST support three quest duration tiers: Short (up to 5min), Medium (15-20min), Long (30-45min)
+- **FR-048**: System MUST allow viewers to deploy 1-3 characters per quest
+- **FR-049**: Characters deployed on quests MUST be locked (cannot be deployed to multiple quests simultaneously)
+- **FR-050**: Quest success rate MUST calculate as: Base (60%) + Character Traits (0-30%) + Party Size (+5% per joiner, max +50%) + Watch Time Bonus (+10% if leader watched ≥50%)
+- **FR-051**: Quest invitations MUST appear in extension overlay (not chat) for silent party formation
+- **FR-052**: System MUST support up to 10 participants per quest (including leader)
+- **FR-053**: Quest rewards MUST include quality-varied materials based on success/failure outcome
+- **FR-054**: Failed quests MUST provide consolation rewards (10% of success yield)
+- **FR-055**: System MUST enforce maximum 3 simultaneous quests per viewer
+- **FR-056**: System MUST enforce minimum 5-minute cooldown between creating new quests
+- **FR-056a**: Quest state lifecycle MUST follow: PENDING (party formation allowed), ACTIVE (in progress, no new joins), SUCCESS/FAILED (outcome determined), CLAIMED (rewards distributed)
+- **FR-056b**: PENDING phase duration MUST scale by tier: Short (30s), Medium (60s), Long (90s), with leader option to force-start early
+- **FR-056c**: Database schema MUST track quest state transitions and prevent invalid state changes
+- **FR-056d**: Rewards MUST auto-claim immediately when quest transitions to SUCCESS/FAILED state, with notification to all participants
+- **FR-057**: System MUST track watch time during quests for active watch bonus calculation
+
+#### Encounter System
+- **FR-058**: System MUST allow viewers to deploy characters to attack active encounters
+- **FR-059**: Encounter difficulty MUST scale based on active chat size (viewers who chatted in last 5 minutes)
+- **FR-060**: Attack power MUST calculate based on: Character rarity (Common:1, Rare:3, Epic:7, Legendary:15) + Character traits + Character level
+- **FR-061**: System MUST track encounter HP and deplete based on cumulative attacks
+- **FR-062**: Each character MUST only be able to attack once per encounter
+- **FR-063**: System MUST distribute victory rewards to all participants with bias toward Higher quality materials
+- **FR-064**: System MUST identify and reward top 3 contributors with MVP bonuses
+- **FR-065**: Defeated encounters MUST provide small consolation rewards
+- **FR-066**: Encounter duration MUST be 10-30 minutes depending on difficulty scaling
+- **FR-066a**: Encounter state lifecycle MUST follow: PENDING (awaiting first attack), ACTIVE (receiving attacks), SUCCESS/FAILED (outcome determined), CLAIMED (rewards distributed)
+- **FR-066b**: Database schema MUST track encounter state transitions and enforce one-attack-per-character constraint
+- **FR-066c**: Rewards MUST auto-claim immediately when encounter transitions to SUCCESS/FAILED state, with notification to all participants
+
+#### Material Quality System
+- **FR-067**: All material drops (pulls, quests, encounters) MUST include quality variants: Low (0.5x), Normal (1.0x), High (2.0x)
+- **FR-068**: Pull quality distribution MUST be: Low (50%), Normal (45%), High (5%)
+- **FR-069**: Quest quality distribution MUST be: Low (60%), Normal (35%), High (5%)
+- **FR-070**: Encounter quality distribution MUST be: Low (30%), Normal (50%), High (20%)
+- **FR-071**: Legendary materials MUST never drop as Low quality (Normal or High only)
+- **FR-072**: Bonus character pulls MUST increase High quality chance by +2%
+- **FR-073**: System MUST track quality per material stack in inventory
+- **FR-074**: Inventory UI MUST display consolidated material view with total point value, revealing quality breakdown (Low/Normal/High quantities) on hover or click for clean presentation with granular detail
+- **FR-075**: Crafting UI MUST allow viewers to select which quality materials to consume
+- **FR-076**: Crafting MUST default to consuming lowest quality materials first (configurable by viewer)
+- **FR-077**: Material tooltips MUST show equivalent value conversions (e.g., "8 High = 16 Normal = 32 Low")
+
+#### Character Trait System
+- **FR-078**: Every character instance MUST receive 1-3 procedural traits on creation based on rarity
+- **FR-079**: Common characters MUST receive 1 trait (60% positive, 30% neutral, 10% negative distribution)
+- **FR-080**: Rare characters MUST receive 1-2 traits (80% positive, 15% neutral, 5% negative distribution)
+- **FR-081**: Epic characters MUST receive 2 traits (90% positive, 10% neutral distribution)
+- **FR-082**: Legendary characters MUST receive 2-3 traits (100% positive, all optimal)
+- **FR-083**: Traits MUST be randomly assigned using deterministic seed (character ID + timestamp) for reproducibility and debugging
+- **FR-084**: Traits MUST be permanent (no re-rolling in MVP)
+- **FR-085**: Traits MUST be visible immediately after character acquisition
+- **FR-086**: Character cards MUST display traits with tooltips explaining mechanical effects
+- **FR-087**: Collection view MUST support filtering by trait type
+- **FR-088**: Quest deployment UI MUST show trait bonuses in real-time
+- **FR-089**: System MUST support trait categories: Gathering (quest bonuses), Combat (encounter bonuses), Efficiency (mechanics), Luck (passive bonuses), Trade-off (balanced pos/neg)
+- **FR-090**: Character traits MUST affect gameplay mechanics as specified (e.g., "Scavenger" +10% High Quality chance)
 
 ### Key Entities
 
@@ -334,8 +486,10 @@ The following are explicitly excluded from this MVP to maintain focus on core me
 - Platform website (streamlets.com/streamlets.app)
 - Browser source overlay for OBS
 - Constellations and cross-character sets
-- Quests and Community Tides
+- Community Tides (platform-wide events)
 - Global leaderboards and statistics
+- Streamer-created custom quest zones (using system defaults for MVP)
+- Character trait re-rolling mechanics
 
 ### Technical Features Deferred
 - Advanced animation and visual effects polish

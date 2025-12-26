@@ -8,6 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && node --experimental-specifier-resolution=node dist/index.js",
     "start": "node dist/index.js",
+    "test": "tsx src/lib/gacha.test.ts",
+    "test:gacha": "tsx src/lib/gacha.test.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push:pg",
     "db:migrate": "tsx src/db/migrate.ts",

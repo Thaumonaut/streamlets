@@ -1,14 +1,19 @@
 # Quickstart Guide: Phase 1 MVP Development
 
 **Feature**: Phase 1 MVP - Single-Tenant Gacha Extension
+**Date**: 2025-12-19 (Updated)
 **Target Audience**: Developers setting up local development environment
 
 ## Overview
 
-This guide walks through setting up the Streamlets Phase 1 MVP from scratch. By the end, you'll have:
+This guide walks through setting up the Phase 1 MVP from scratch. By the end, you'll have:
 - ✅ Local Twitch extension running in Developer Rig
-- ✅ Backend API server connected to Supabase database
-- ✅ Complete test cycle: watch → earn → pull → craft → collect
+- ✅ Backend API server connected to PostgreSQL database
+- ✅ Complete test cycle: pull → craft → collect → quest → encounter
+- ✅ Material quality system (Low/Normal/High multipliers)
+- ✅ Character trait generation (deterministic seeding)
+- ✅ Quest party formation with 4-state lifecycle
+- ✅ Collaborative encounter mechanics with MVP rewards
 
 **Estimated setup time**: 30-45 minutes
 
@@ -153,12 +158,19 @@ SELECT * FROM recipes;
 Expected tables:
 - `viewers`
 - `material_definitions`
-- `material_inventory`
+- `material_inventory` (with `quality` column: 'low'|'normal'|'high')
 - `character_definitions`
-- `character_instances`
+- `character_instances` (with `trait_seed` and `traits` columns)
 - `recipes`
 - `recipe_materials`
 - `pull_results`
+- **2025-12-19 additions:**
+  - `trait_definitions` (procedural trait pool)
+  - `quest_zones` (system-managed zones)
+  - `quests` (4-state lifecycle)
+  - `quest_participants` (junction table)
+  - `encounters` (collaborative boss fights)
+  - `encounter_participants` (attack tracking)
 
 ---
 
@@ -311,9 +323,82 @@ curl -X POST http://localhost:3000/api/craft \
 
 ### 7. Verify in Extension
 - Reload extension in Developer Rig
-- Character should appear in collection
-- Material counts updated
+- Character should appear in collection with traits
+- Material counts updated (quality breakdown on hover)
 - Currency balance updated
+
+### 8. Test Quest Creation (2025-12-19)
+```bash
+# Create a new quest in PENDING state
+curl -X POST http://localhost:3000/api/quests \
+  -H "Authorization: Bearer $TEST_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "zoneId": "FOREST",
+    "tier": "medium",
+    "characterId": 1
+  }'
+
+# Response:
+# {
+#   "id": 1,
+#   "zoneId": "FOREST",
+#   "zoneName": "Enchanted Forest",
+#   "tier": "medium",
+#   "state": "PENDING",
+#   "partySize": 1,
+#   "maxPartySize": 3,
+#   "pendingExpiresAt": "2025-12-19T12:31:00Z",
+#   "participants": [...]
+# }
+```
+
+### 9. Test Quest Joining
+```bash
+# Another viewer joins the quest (use different JWT)
+curl -X POST http://localhost:3000/api/quests/1/join \
+  -H "Authorization: Bearer $TEST_JWT_VIEWER_2" \
+  -H "Content-Type: application/json" \
+  -d '{"characterId": 2}'
+
+# Quest auto-starts when timer expires or leader force-starts
+curl -X POST http://localhost:3000/api/quests/1/start \
+  -H "Authorization: Bearer $TEST_JWT" # Leader only
+```
+
+### 10. Test Encounter Attack (2025-12-19)
+```bash
+# Get active encounters
+curl http://localhost:3000/api/encounters/active \
+  -H "Authorization: Bearer $TEST_JWT"
+
+# Attack encounter
+curl -X POST http://localhost:3000/api/encounters/1/attack \
+  -H "Authorization: Bearer $TEST_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"characterId": 1}'
+
+# Response:
+# {
+#   "damage": 35,
+#   "currentHp": 120,
+#   "state": "ACTIVE",
+#   "rewards": null  // Present when state=SUCCESS
+# }
+
+# When encounter is defeated, rewards auto-claim:
+# {
+#   "damage": 35,
+#   "currentHp": 0,
+#   "state": "SUCCESS",
+#   "rewards": {
+#     "materials": [
+#       {"materialId": "ESSENCE", "quantity": 5, "quality": "high"}
+#     ],
+#     "mvpBonus": true
+#   }
+# }
+```
 
 ---
 
@@ -324,9 +409,21 @@ curl -X POST http://localhost:3000/api/craft \
 ```
 # Extension frontend work (UI components)
 extension/src/components/
+├── PullPanel.svelte
+├── CraftingView.svelte
+├── InventoryPanel.svelte  # Shows quality breakdown on hover
+├── CollectionPanel.svelte  # Displays character traits
+├── QuestBoard.svelte       # 2025-12-19: Quest creation/joining
+└── EncounterView.svelte    # 2025-12-19: Collaborative attacks
 
 # Backend API endpoints
-backend/src/api/
+backend/src/api/handlers.ts
+├── POST /api/pull           # Material quality assignment
+├── POST /api/craft          # Trait generation
+├── POST /api/quests         # 2025-12-19: Quest creation
+├── POST /api/quests/:id/join
+├── POST /api/quests/:id/start
+└── POST /api/encounters/:id/attack
 
 # Database schema changes
 backend/src/db/schema.ts → run `drizzle-kit generate`
@@ -334,8 +431,12 @@ backend/src/db/schema.ts → run `drizzle-kit generate`
 # Shared types (used by both)
 shared/types.ts
 
-# Hardcoded materials/recipes
-backend/src/lib/recipes.ts
+# Game logic libraries
+backend/src/lib/
+├── gacha.ts           # Pull mechanics, pity system
+├── recipes.ts         # Material/character definitions
+├── rate-limit.ts      # Quest cooldown (5-min)
+└── traits.ts          # 2025-12-19: Deterministic trait generation (seedrandom)
 ```
 
 ### Common Commands

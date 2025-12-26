@@ -1,0 +1,1 @@
+ALTER TABLE "viewers" ADD COLUMN "pity_counter" integer DEFAULT 0 NOT NULL;

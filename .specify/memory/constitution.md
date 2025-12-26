@@ -1,21 +1,22 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 1.3.1 → 1.3.2 (PATCH - domain preference: .com/.app over .gg)
+Version Change: 1.3.2 → 1.4.0 (MINOR - Quest/Encounter system added)
 Modified Principles:
-  - III. Architecture: Expanded to three-part ecosystem (Extension + Website + Overlay)
-  - IX. Crafting & Research: Added Seasons concept
+  - VII. Monetization & Economy: Added quest material rewards as alternative to pulls
+  - X. Stream Integration: Added raid event mechanics
 Added Sections:
-  - XI. Platform-First Value Creation (NEW)
-  - XII. Collector Experience (NEW)
-  - XIII. External Value Bridges (NEW)
+  - IX-B. Quest & Encounter System (NEW)
 Removed Sections: N/A
 Templates Requiring Updates:
   - .specify/templates/plan-template.md ✅ (compatible - no changes needed)
   - .specify/templates/spec-template.md ✅ (compatible - no changes needed)
   - .specify/templates/tasks-template.md ✅ (compatible - no changes needed)
 Follow-up TODOs:
-  - None - all placeholders resolved
+  - Database migration: Add quality column to material_inventory
+  - Database migration: Add character_traits table
+  - Database migration: Add active_quests and encounters tables
+  - Update spec.md to reflect quest system
 ==================
 -->
 
@@ -171,6 +172,8 @@ Unwanted characters can be broken down into materials:
 #### Currency Earning Rules
 
 - **Base Earning Rate**: Configurable per-channel (default: 10 Dust per 5 minutes watched)
+- **Quest Material Rewards**: Active engagement system where characters gather materials (see Section IX-B)
+- **Design Balance**: Quests complement pulls (require characters acquired via pulls); systems are symbiotic
 - **Hype Train Multiplier**: Earning rate scales with hype train level for ALL viewers:
   - Level 1: 1.2x | Level 2: 1.4x | Level 3: 1.6x | Level 4: 1.8x | Level 5: 2.0x
 - **Large Currency Drops**: Reserved for direct interactions (subscriptions, bits cheers, gifted subs)
@@ -315,6 +318,229 @@ Post-craft leveling requires additional materials:
 
 **Rationale**: Standardized budgets ensure fair time investment across channels while giving streamers creative freedom. Community research creates shared investment and celebration moments. Seasons allow content evolution without invalidating earlier collections.
 
+### IX-B. Quest & Encounter System
+
+Characters provide utility beyond collection through deployable quests and community encounters that gather materials while viewers watch streams.
+
+#### Quest Mechanics
+
+**Character Deployment**:
+- Viewers select 1-3 characters from their inventory to deploy on a quest
+- Quest duration tiers:
+  - **Short**: Up to 5 minutes (quick rewards, frequent engagement)
+  - **Medium**: 15-20 minutes (balanced risk/reward)
+  - **Long**: 30-45 minutes (maximum efficiency, requires commitment)
+- Characters are NOT consumed; they return after quest completion
+- Each character can only be on ONE quest OR encounter at a time
+
+**Quest Zones**:
+- System-managed default zones (e.g., "Enchanted Forest", "Cosmic Void", "Ancient Ruins")
+- Each zone has specific material reward pools
+- **Streamer Customization**: Streamers MAY customize quest start/end messages to match channel theme
+- Zones visible in extension UI with active quest counters
+
+**Community Participation**:
+- Quest creator's invitation appears in extension overlay (silent, no chat spam)
+- Other viewers join via button click in extension panel
+- Party size: 1-10 participants (including leader)
+- **Success Rate Bonus**: +5% per participant (capped at +50%)
+- **Loot Distribution**: All participants receive rewards on success
+
+**Success Calculation**:
+```
+Base Success Rate: 60%
++ Character Trait Bonuses: +0-30% (varies by deployed characters)
++ Party Participation: +5% per joiner (max +50%)
++ Active Watch Bonus: +10% if leader watched ≥50% of quest duration
+= Final Success Rate (capped at 95%, never 100%)
+```
+
+**Quest Outcomes**:
+- **Success**: All participants receive material rewards
+- **Failure**: Small consolation reward (10% of success yield)
+- **Quality Distribution**: Materials can drop as Low (0.5x), Normal (1.0x), or High (2.0x) quality
+
+#### Encounter Mechanics
+
+**Community Encounters** are active, time-limited events where viewers collectively "attack" a boss/challenge:
+
+**Encounter Scaling**:
+- Encounter difficulty scales with **active chat size** (viewers who chatted in last 5 minutes)
+- More active viewers = stronger encounter = better rewards (if defeated)
+- Prevents dead channels from facing impossible encounters
+- Encourages chat activity
+
+**Attack System**:
+- Viewers deploy characters to "attack" the encounter
+- Attack power determined by:
+  - Character rarity (Common: 1, Rare: 3, Epic: 7, Legendary: 15)
+  - Character traits (combat-focused traits provide bonuses)
+  - Character quality/level
+- Encounter has HP pool that depletes with attacks
+- Encounter duration: 10-30 minutes depending on difficulty
+
+**Encounter Rewards**:
+- **Victory**: All participants receive quality materials (weighted toward higher quality)
+- **Defeat**: Small consolation rewards
+- **MVP Bonuses**: Top 3 contributors receive bonus materials
+- **First-Time Bonus**: Extra rewards if first encounter participation
+
+**Encounter Frequency**:
+- Streamers can trigger encounters manually
+- Automatic encounter spawns every 2-4 hours (configurable)
+- Special encounters during platform-wide events
+
+#### Material Quality System
+
+All material rewards (from pulls, quests, and encounters) include quality variants:
+
+| Quality Tier | Value Multiplier | Visual Indicator | Drop Rate |
+|--------------|------------------|------------------|-----------|
+| Low (Chipped) | 0.5x | Cracked/damaged appearance | 60% (quests), 50% (pulls), 30% (encounters) |
+| Normal | 1.0x | Standard appearance | 35% (quests), 45% (pulls), 50% (encounters) |
+| High (Pristine) | 2.0x | Glowing/enhanced appearance | 5% (quests), 5% (pulls), 20% (encounters) |
+
+**Quality in Pulls**:
+- All pull tiers (single/5/10) can drop quality variants
+- Bonus character pulls slightly increase High quality chance (+2%)
+- Legendary materials always drop as Normal or High quality (never Low)
+
+**Character Traits Modify Quality**:
+- "Scavenger" trait: +10% High Quality chance
+- "Unlucky" trait: +10% Low Quality chance, +10% total quantity (trade-off)
+- "Fortune" trait: +5% total material quantity
+
+**Crafting with Quality**:
+- Recipes require total point value, not specific items
+- Example: Recipe requires 500 points of Wood
+  - 500 Normal Wood (500×1.0) OR
+  - 250 High Quality Wood (250×2.0) OR
+  - 1000 Low Quality Wood (1000×0.5) OR
+  - Mix-and-match to reach 500 points
+- Viewer chooses which materials to consume (auto-consume lowest quality first by default)
+
+**Inventory Management**:
+- Quality tracked per material stack
+- UI displays: "Wood: 50 Low (25pts), 120 Normal (120pts), 8 High (16pts) = 161 total points"
+- Crafting UI shows quality-adjusted progress bar
+- Hovering material shows equivalent value (e.g., "8 High = 16 Normal = 32 Low")
+
+#### Character Trait System
+
+Every character instance rolls 1-3 procedural traits upon creation (pull or craft):
+
+**Trait Categories**:
+
+| Category | Effect | Examples |
+|----------|--------|----------|
+| **Gathering** | Quest reward bonuses | Scavenger (+10% High Quality), Specialist (+20% specific material type) |
+| **Combat** | Encounter attack bonuses | Warrior (+50% attack power), Tank (+25% HP contribution) |
+| **Efficiency** | Quest/encounter mechanics | Speedster (-25% duration), Leader (+10% party success rate) |
+| **Luck** | Passive bonuses while in inventory | Lucky Charm (+0.5% character drop rate), Pity Accelerator (+1 pity/pull, max 3 owned) |
+| **Trade-off** | Balanced positive/negative | Lazy (+25% duration, +10% High Quality), Brave (+15% Legendary chance, -10% success rate) |
+
+**Trait Assignment by Rarity**:
+- **Common**: 1 trait (60% positive, 30% neutral, 10% negative)
+- **Rare**: 1-2 traits (80% positive, 15% neutral, 5% negative)
+- **Epic**: 2 traits (90% positive, 10% neutral)
+- **Legendary**: 2-3 traits (100% positive, always optimal)
+
+**Trait Behavior**:
+- Traits are **randomly assigned on creation** (surprise mechanics)
+- Traits are **permanent** (no re-rolling in MVP; deferred to Phase 2+)
+- Traits are **visible immediately** after character is obtained
+- Duplicate characters may have different traits (creates strategic depth)
+
+**Streamer Customization** (Phase 3):
+- Trait names/descriptions can be reskinned per channel
+- System trait: "Scavenger" → Streamer renames: "Goblin Mode"
+- Mechanical effects remain consistent (cross-channel fairness)
+
+**Trait Visibility**:
+- Traits displayed on character card with tooltips
+- Collection view filterable by trait type
+- Quest deployment UI shows trait bonuses in real-time
+
+#### Quest Rewards Balance
+
+Quest/encounter system complements pulls; neither obsoletes the other:
+
+**Expected Value Comparison** (normalized to 1 hour of watching):
+
+| Activity | Materials/Hour (Quality-Adjusted) | Engagement Level | Character Requirement |
+|----------|-----------------------------------|------------------|----------------------|
+| Passive Watching → Pulling | ~3.6 materials | Low (watch only) | None (currency-based) |
+| Active Questing (Solo) | ~5.4-8.1 materials | Medium (deploy + monitor) | 1-3 characters required |
+| Community Questing | ~8-12 materials | High (party formation + watching) | 1-3 characters required |
+| Encounter Participation | ~10-15 materials | Very High (coordinated attacks + chat activity) | 1+ characters required |
+
+**Design Intent**:
+- Quests/encounters reward active engagement and social play
+- Pulls required to acquire characters for quest deployment
+- Neither system dominates; creates strategic choice
+- Solo players can still progress via pulls (no forced social interaction)
+- Active community players receive efficiency bonuses (rewarded for engagement)
+
+#### Anti-Exploit Measures
+
+**AFK Prevention**:
+- Active watch requirement: +10% success bonus if leader watches ≥50% of quest duration
+- Watch time tracked via existing heartbeat system (60s intervals)
+- Characters locked during active deployment (prevents double-use exploits)
+
+**Quest Spam Prevention**:
+- Maximum 3 simultaneous quests per viewer
+- Minimum 5-minute cooldown between creating new quests
+- Characters locked during quests (cannot be deployed to multiple quests)
+
+**Encounter Fairness**:
+- Each character can only attack once per encounter
+- Attack contribution tracked to prevent double-counting
+- Encounter difficulty dynamically adjusts to active chat size
+- MVP rewards based on attack contribution (prevents free-loading)
+
+**Inventory Limits**:
+- Maximum quality-adjusted material storage: 10,000 quality-points per material type
+- Example: 10,000 Normal Wood OR 5,000 High Quality Wood OR 20,000 Low Quality Wood
+- Excess rewards convert to lower quality tiers or Dust (player's choice)
+- Prevents infinite accumulation
+
+#### Raid Event System: "The Caravan"
+
+When Streamer A raids Streamer B (both using extension):
+
+**Trigger Conditions**:
+1. Raid includes ≥10 viewers (prevents micro-raid farming)
+2. Raiding channel was live ≥1 hour before raid (prevents raid farms)
+3. Viewer earned ≥10 Dust in raiding channel today (proves active watching)
+4. Viewer hasn't claimed reward from this raiding channel today (24h cooldown)
+
+**Visual Experience**:
+1. Extension overlay shows "Caravan Departing!" animation
+2. Characters visible in themed wagon (raiding channel's style)
+3. 5-minute countdown timer begins
+4. If viewer watches raided channel for full 5 minutes, Caravan "Arrives"
+
+**Rewards**:
+- **Material Crate**: 5-10 materials from raiding channel's material pool (Normal/High quality bias)
+- **Welcome Bonus** (if raided channel uses extension): 50 Dust in destination channel + starter materials
+- **First-Time Bonus**: +5 materials if first time watching raided channel
+- **Raid Size Scaling**: Larger raids (100+ viewers) provide +20% material quantity
+
+**Anti-Exploit**:
+- One reward per viewer per raiding channel per 24h (prevents farming loops)
+- Raid size minimum prevents coordinated micro-raids
+- Watch time requirement in raiding channel prevents drive-by farmers
+- Both channels must use extension (drives adoption, not exploitation)
+
+**Streamer Benefits**:
+- Raiders encouraged to stay (5min watch time requirement)
+- Cross-pollinates audiences
+- Creates "gift exchange" narrative ("We brought you materials from PuffTheStreamer!")
+- Drives extension adoption (both parties benefit)
+
+**Rationale**: Quests and encounters solve the "useless low-tier character" problem by giving every character utility value. Material quality creates strategic depth without inventory bloat. Character traits add collection variety and optimization layers. Community encounters encourage social interaction and chat activity. Raid events drive cross-channel discovery while respecting anti-exploit measures.
+
 ### X. Stream Integration Architecture
 
 The extension MUST integrate with live streams through lightweight, resource-efficient mechanisms:
@@ -375,7 +601,7 @@ Backend MUST subscribe to relevant channel events:
 - Subscriptions (trigger currency drops)
 - Bits cheers (trigger currency drops)
 - Hype trains (activate multiplier)
-- Raids (welcome bonuses for raiders)
+- Raids (trigger Caravan event; see Section IX-B for raid mechanics)
 
 #### Physical Goods Integration (Phase 2)
 
@@ -659,4 +885,4 @@ This Constitution is the authoritative guide for all Streamlets development deci
   - PATCH: Clarifications, typo fixes, non-semantic refinements
 - **Compliance Review**: Every PR description MUST include a Constitution Check section confirming adherence to relevant principles
 
-**Version**: 1.3.2 | **Ratified**: 2025-12-17 | **Last Amended**: 2025-12-18
+**Version**: 1.4.0 | **Ratified**: 2025-12-17 | **Last Amended**: 2025-12-19

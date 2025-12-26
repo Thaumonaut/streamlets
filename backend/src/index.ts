@@ -23,17 +23,44 @@ import { seed } from './db/seed';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+
+const rawCorsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+const devFallbackOrigins = process.env.NODE_ENV !== 'production'
+  ? [
+      'http://localhost:5173',
+      'https://localhost:5173',
+      'https://www.twitch.tv',
+      'https://dashboard.twitch.tv',
+      'https://twitch.tv',
+    ]
+  : [];
+
+const allowedOrigins = Array.from(new Set([...rawCorsOrigins, ...devFallbackOrigins]));
 
 // Middleware
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`🚫 Blocked CORS origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json());
 
 // Logging middleware
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
   next();
@@ -56,7 +83,7 @@ app.get('/api/inventory', validateJWT, inventoryHandler);
 app.get('/api/recipes', validateJWT, recipesHandler);
 
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
@@ -70,7 +97,11 @@ async function start() {
 
     app.listen(PORT, () => {
       console.log(`✅ API server running on http://localhost:${PORT}`);
-      console.log(`   CORS origin: ${CORS_ORIGIN}`);
+      if (allowedOrigins.length > 0) {
+        console.log(`   Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+      } else {
+        console.log('   Allowed CORS origins: * (all origins allowed)');
+      }
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {

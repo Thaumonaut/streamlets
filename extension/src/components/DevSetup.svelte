@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { setDevAuthToken } from '$lib/auth';
   
   let tokens: Record<string, string> = {};
   let selectedToken = 'viewer';
@@ -79,7 +80,7 @@
       return;
     }
 
-    localStorage.setItem('dev_auth_token', token);
+    setDevAuthToken(token);
     selectedToken = role;
     statusMessage = `✓ Using ${role} token`;
 
@@ -91,6 +92,7 @@
 
   function clearToken() {
     localStorage.removeItem('dev_auth_token');
+    setDevAuthToken('');
     statusMessage = '✓ Cleared auth token';
     setTimeout(() => {
       window.location.reload();

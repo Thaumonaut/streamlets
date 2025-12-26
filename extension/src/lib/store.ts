@@ -45,15 +45,29 @@ export function updateDustBalance(newBalance: number): void {
 
 /**
  * Add materials to inventory
+ * Creates a new array to ensure Svelte reactivity triggers
  */
 export function addMaterials(newMaterials: Array<{ materialId: string; name: string; rarity: string; quantity: number }>): void {
   materials.update(current => {
-    const updated = [...current];
+    // Create a new array with a copy of existing materials
+    const updated: MaterialInventoryItem[] = current.map(m => ({
+      materialId: m.materialId,
+      name: m.name,
+      rarity: m.rarity,
+      quantity: m.quantity,
+    }));
 
     for (const newMat of newMaterials) {
-      const existing = updated.find(m => m.materialId === newMat.materialId);
-      if (existing) {
-        existing.quantity += newMat.quantity;
+      const existingIndex = updated.findIndex(m => m.materialId === newMat.materialId);
+      if (existingIndex >= 0) {
+        // Create new object instead of mutating
+        const existing = updated[existingIndex];
+        updated[existingIndex] = {
+          materialId: existing.materialId,
+          name: existing.name,
+          rarity: existing.rarity,
+          quantity: existing.quantity + newMat.quantity,
+        };
       } else {
         updated.push({
           materialId: newMat.materialId,
@@ -64,6 +78,7 @@ export function addMaterials(newMaterials: Array<{ materialId: string; name: str
       }
     }
 
+    // Return new array reference to ensure reactivity
     return updated;
   });
 }

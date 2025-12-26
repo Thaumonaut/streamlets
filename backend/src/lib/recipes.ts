@@ -12,6 +12,7 @@ export const MATERIAL_POINT_VALUES = {
   common: 1,
   uncommon: 5,
   rare: 25,
+  epic: 50,
   legendary: 100,
 } as const;
 
@@ -22,7 +23,7 @@ export interface MaterialDef {
   id: string;
   name: string;
   rarity: Rarity;
-  points: 1 | 5 | 25 | 100;
+  points: 1 | 5 | 25 | 50 | 100;
   description?: string;
 }
 
@@ -44,6 +45,11 @@ export const MATERIALS: readonly MaterialDef[] = [
   { id: 'GEM', name: 'Gem', rarity: 'rare', points: 25, description: 'Precious gemstone' },
   { id: 'CRYSTAL', name: 'Crystal', rarity: 'rare', points: 25, description: 'Perfect crystal formation' },
   { id: 'ORB', name: 'Orb', rarity: 'rare', points: 25, description: 'Mysterious orb' },
+
+  // Epic tier (50 points each)
+  { id: 'NEXUS', name: 'Nexus Shard', rarity: 'epic', points: 50, description: 'A shard from the cosmic nexus' },
+  { id: 'VOID_ESSENCE', name: 'Void Essence', rarity: 'epic', points: 50, description: 'Essence extracted from the void' },
+  { id: 'ASTRAL_GEM', name: 'Astral Gem', rarity: 'epic', points: 50, description: 'A gem infused with astral energy' },
 
   // Legendary tier (100 points each)
   { id: 'CORE', name: 'Prism Core', rarity: 'legendary', points: 100, description: 'Legendary prism core' },
@@ -70,6 +76,15 @@ export const CHARACTERS: readonly CharacterDef[] = [
   // Rare characters
   { id: 'COWL', name: 'Cosmic Owl', rarity: 'rare', description: 'A wise owl from the cosmos' },
   { id: 'PHOENIX', name: 'Phoenix', rarity: 'rare', description: 'A legendary firebird' },
+
+  // Epic characters
+  { id: 'NEBULA', name: 'Nebula Dragon', rarity: 'epic', description: 'A majestic dragon born from cosmic nebulae' },
+  { id: 'ASTRAL', name: 'Astral Guardian', rarity: 'epic', description: 'An ancient guardian of the stars' },
+  { id: 'VOID', name: 'Void Walker', rarity: 'epic', description: 'A mysterious entity that walks between dimensions' },
+
+  // Legendary characters
+  { id: 'COSMOS', name: 'Cosmos Emperor', rarity: 'legendary', description: 'The supreme ruler of all cosmic realms' },
+  { id: 'CELESTIAL', name: 'Celestial Phoenix', rarity: 'legendary', description: 'A divine phoenix that embodies the universe itself' },
 ] as const;
 
 // =============================================================================

@@ -15,6 +15,7 @@ export const viewers = pgTable('viewers', {
   twitchUsername: varchar('twitch_username', { length: 255 }),
   dustBalance: integer('dust_balance').notNull().default(250),
   lastWatchHeartbeat: timestamp('last_watch_heartbeat'),
+  pityCounter: integer('pity_counter').notNull().default(0), // Pulls since last legendary (resets at 90)
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
