@@ -16,7 +16,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@project-puff/shared": "workspace:*"
+    "@project-puff/shared": "workspace:*",
+    "three": "^0.160.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.5",

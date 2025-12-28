@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streamlets - Supernova 3D</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Fredoka', sans-serif;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .ui {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .pull-btn {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      padding: 16px 48px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+      text-transform: uppercase;
+    }
+
+    .pull-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .skip-btn {
+      font-family: 'Fredoka', sans-serif;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.6);
+      display: none;
+    }
+
+    .skip-btn.visible {
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 16px;
+      border-radius: 30px;
+    }
+
+    .control-group label {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .control-group select {
+      font-family: 'Fredoka', sans-serif;
+      background: rgba(0, 0, 0, 0.3);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+
+    .title {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      text-align: center;
+    }
+
+    .title h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f0abfc, #818cf8, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title p {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .cards-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .card {
+      position: absolute;
+      width: 70px;
+      height: 98px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0);
+      box-shadow: 0 0 20px currentColor;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .card.common {
+      background: linear-gradient(145deg, #3a3a48, #2a2a35);
+      border: 2px solid #6a6a7a;
+      color: #9ca3af;
+    }
+
+    .card.rare {
+      background: linear-gradient(145deg, #1e3a6e, #152a50);
+      border: 2px solid #3b82f6;
+      color: #3b82f6;
+    }
+
+    .card.epic {
+      background: linear-gradient(145deg, #4c1d6e, #351450);
+      border: 2px solid #a855f7;
+      color: #a855f7;
+    }
+
+    .card.legendary {
+      background: linear-gradient(145deg, #5c4a1d, #453810);
+      border: 2px solid #f59e0b;
+      color: #f59e0b;
+    }
+
+    .card-emote {
+      font-size: 1.6rem;
+    }
+
+    .card-rarity {
+      font-size: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .card.hidden-legendary {
+      background: #ffffff !important;
+      border: 2px solid #ffffff !important;
+      box-shadow: 0 0 50px white, 0 0 100px white !important;
+      color: transparent !important;
+      cursor: pointer;
+      z-index: 1000 !important;
+    }
+
+    .card.hidden-legendary .card-emote,
+    .card.hidden-legendary .card-rarity {
+      display: none;
+    }
+
+    .card.shaking {
+      animation: shake 0.1s infinite;
+    }
+
+    @keyframes shake {
+      0% {
+        transform: scale(1.5) translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: scale(1.5) translate(2px, 2px) rotate(2deg);
+      }
+
+      50% {
+        transform: scale(1.5) translate(0, -2px) rotate(-1deg);
+      }
+
+      75% {
+        transform: scale(1.5) translate(-2px, 0) rotate(1deg);
+      }
+
+      100% {
+        transform: scale(1.5) translate(0, 0) rotate(0deg);
+      }
+    }
+
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 1.2rem;
+      z-index: 1000;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loading">Loading...</div>
+  <div id="container"></div>
+  <div class="title">
+    <h1>✦ SUPERNOVA 3D ✦</h1>
+    <p>Smooth breathing • Real bloom • Calm before the storm</p>
+  </div>
+  <div class="cards-overlay" id="cards"></div>
+  <div class="ui">
+    <button class="skip-btn" id="skip-btn">Skip →</button>
+    <button class="pull-btn" id="pull-btn" disabled>✦ Pull Cards</button>
+    <div class="controls">
+      <div class="control-group"><label>Cards:</label><select id="card-count">
+          <option value="1">1</option>
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select></div>
+      <div class="control-group"><label>Force:</label><select id="force-rarity">
+          <option value="random" selected>Random</option>
+          <option value="rare">Rare</option>
+          <option value="epic">Epic</option>
+          <option value="legendary">Legendary</option>
+        </select></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // Custom shader for round glowing particles
+    const roundParticleVertexShader = `
+  attribute float size;
+  attribute float opacity;
+  varying vec3 vColor;
+  varying float vOpacity;
+  void main() {
+    vColor = color;
+    vOpacity = opacity;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+    const roundParticleFragmentShader = `
+  varying vec3 vColor;
+  varying float vOpacity;
+  void main() {
+    // Create circular shape
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
+    
+    // Discard pixels outside circle
+    if (dist > 0.5) discard;
+    
+    // Create glow effect - brighter at center, fading to edges
+    float glow = 1.0 - (dist * 2.0);
+    glow = pow(glow, 2.0);
+    
+    // White glow with original color tint
+    vec3 finalColor = mix(vColor, vec3(1.0), glow * 0.7);
+    float alpha = glow * vOpacity;
+    
+    gl_FragColor = vec4(finalColor, alpha);
+  }
+`;
+
+    const EMOTES = ['😀', '😎', '🔥', '💜', '⭐', '🎮', '💎', '🌟', '✨', '🚀', '💫', '🎨', '💖', '🌈', '⚡', '🔮', '👑'];
+    const RARITY_COLORS = { common: 0x9ca3af, rare: 0x3b82f6, epic: 0xa855f7, legendary: 0xf59e0b };
+    const CHROMATIC = [0xff6b6b, 0xfeca57, 0x48dbfb, 0xff9ff3, 0x54a0ff, 0x5f27cd, 0x00d2d3];
+    // Prismatic rainbow colors for particles
+    const PRISMATIC = [0xff6b6b, 0xff9f43, 0xfeca57, 0x26de81, 0x48dbfb, 0x54a0ff, 0xa55eea, 0xff6b9d];
+
+    const container = document.getElementById('container');
+
+    // Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030306);
+
+    // Camera - starts above the plane
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 25, 70);  // Start above
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.1;
+
+    // Check for GPU acceleration
+    const gl = renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+      const renderer_name = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      console.log('GPU Acceleration:', vendor, renderer_name);
+    }
+    console.log('WebGL Context:', gl ? 'Active (GPU Accelerated)' : 'Failed');
+
+    container.appendChild(renderer.domElement);
+
+    // Bloom
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.8, 1.2, 0.25  // Increased radius from 0.3 to 1.2 for larger rounder glow
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // State
+    let isAnimating = false, skip = false;
+    let coreGroup = null, blackHole = null, nebulaPoints = null, legendaryHint = null;
+    let rings = [], emoteSprites = [], goldDust = [];
+
+    // Pulse state - for smooth breathing like 2D version
+    let pulsePhase = 0;  // 0 to 2π
+    let pulseBPM = 90;
+    let pulseIntensity = 0;
+    let pulseActive = false;
+
+    let state = {
+      speed: 1,
+      pull: 0,
+      coreSize: 0.6,
+      chroma: 0,
+      colorProgress: 0,  // 0 = white, 1 = rarity color
+      targetColor: 0xffffff,  // Will be set to rarity color
+      // Camera orbit
+      camAngle: 0,      // Horizontal orbit angle
+      camY: 25,         // Height (starts above)
+      camDist: 70,      // Distance from center
+      targetCamAngle: 0,
+      targetCamY: 25,
+      targetCamDist: 70,
+      shakeAmount: 0,
+      phase: 'idle',
+      explodeTime: 0,
+      animationStartTime: 0  // Track when animation phase started
+    };
+
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // Easing functions for snappy animations
+    const easeOutBack = (t) => {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    };
+
+    const easeInBack = (t) => {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return c3 * t * t * t - c1 * t * t;
+    };
+
+    const sleep = s => new Promise(r => setTimeout(r, s * 1000));
+    const iSleep = s => new Promise(r => {
+      if (skip) return r();
+      const id = setTimeout(r, s * 1000);
+      const c = setInterval(() => { if (skip) { clearTimeout(id); clearInterval(c); r(); } }, 16);
+      setTimeout(() => clearInterval(c), s * 1000 + 20);
+    });
+
+    // Smooth shake
+    function smoothShake(time, amount) {
+      const x = Math.sin(time * 11.3) * Math.sin(time * 5.7) * amount;
+      const y = Math.sin(time * 9.1) * Math.sin(time * 4.3) * amount * 0.5;
+      return { x, y };
+    }
+
+    // LEGENDARY HINT - gold cracks/sparkles at the very start
+    function createLegendaryHint() {
+      const group = new THREE.Group();
+
+      // Gold sparkle particles
+      const sparkleCount = 30;
+      const sparkleGeo = new THREE.BufferGeometry();
+      const sparklePos = new Float32Array(sparkleCount * 3);
+      const sparkleSizes = new Float32Array(sparkleCount);
+
+      for (let i = 0; i < sparkleCount; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const dist = rand(3, 12);
+        sparklePos[i * 3] = Math.cos(angle) * dist;
+        sparklePos[i * 3 + 1] = rand(-3, 3);
+        sparklePos[i * 3 + 2] = Math.sin(angle) * dist;
+        sparkleSizes[i] = rand(0.5, 1.5);
+      }
+
+      sparkleGeo.setAttribute('position', new THREE.BufferAttribute(sparklePos, 3));
+      sparkleGeo.setAttribute('size', new THREE.BufferAttribute(sparkleSizes, 1));
+
+      const sparkleColor = new THREE.Color(0xffd700);
+      const sparkleColors = new Float32Array(sparkleCount * 3);
+      for (let i = 0; i < sparkleCount; i++) {
+        sparkleColors[i * 3] = sparkleColor.r;
+        sparkleColors[i * 3 + 1] = sparkleColor.g;
+        sparkleColors[i * 3 + 2] = sparkleColor.b;
+      }
+      sparkleGeo.setAttribute('color', new THREE.BufferAttribute(sparkleColors, 3));
+
+      const sparkleMat = new THREE.ShaderMaterial({
+        uniforms: {},
+        vertexShader: roundParticleVertexShader,
+        fragmentShader: roundParticleFragmentShader,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        vertexColors: true
+      });
+
+      const sparkles = new THREE.Points(sparkleGeo, sparkleMat);
+      group.add(sparkles);
+      group.sparkles = sparkles;
+
+      // Gold ring flash
+      const ringGeo = new THREE.TorusGeometry(8, 0.15, 8, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffd700,
+        transparent: true,
+        opacity: 0
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      group.add(ring);
+      group.ring = ring;
+
+      // Second ring at angle
+      const ring2 = new THREE.Mesh(ringGeo.clone(), ringMat.clone());
+      ring2.rotation.x = Math.PI / 2;
+      ring2.rotation.y = Math.PI / 4;
+      group.add(ring2);
+      group.ring2 = ring2;
+
+      scene.add(group);
+      return group;
+    }
+
+    async function playLegendaryHint(hint) {
+      if (!hint || skip) return;
+
+      // Quick flash of gold
+      const duration = 0.6;
+      const steps = Math.floor(duration / 0.02);
+
+      for (let i = 0; i < steps; i++) {
+        if (skip) break;
+        await iSleep(0.02);
+        const t = i / steps;
+
+        // Sparkles fade in then out
+        const sparkleOpacity = t < 0.4 ? t / 0.4 : 1 - (t - 0.4) / 0.6;
+        hint.sparkles.material.opacity = sparkleOpacity * 0.8;
+
+        // Rotate sparkles
+        hint.sparkles.rotation.y += 0.05;
+
+        // Rings expand and fade
+        const ringOpacity = t < 0.3 ? t / 0.3 : 1 - (t - 0.3) / 0.7;
+        const ringScale = 1 + t * 2;
+        hint.ring.material.opacity = ringOpacity * 0.6;
+        hint.ring.scale.set(ringScale, ringScale, 1);
+        hint.ring2.material.opacity = ringOpacity * 0.4;
+        hint.ring2.scale.set(ringScale * 0.8, ringScale * 0.8, 1);
+      }
+
+      // Cleanup
+      scene.remove(hint);
+    }
+
+    // NEBULA - warm white glow, starts invisible
+    function createNebula(count) {
+      const geo = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      const particles = [];
+
+      // Warm white/gold colors for glow
+      const warmColors = [0xffffff, 0xfff8e7, 0xffeecc, 0xffe4b5, 0xffd699];
+
+      for (let i = 0; i < count; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const dist = rand(4, 30);
+        const y = rand(-4, 4);
+        positions[i * 3] = Math.cos(angle) * dist;
+        positions[i * 3 + 1] = y;
+        positions[i * 3 + 2] = Math.sin(angle) * dist;
+
+        // Warm white/gold colors
+        const warmColor = new THREE.Color(warmColors[i % warmColors.length]);
+        const brightness = rand(0.8, 1);
+        colors[i * 3] = warmColor.r * brightness;
+        colors[i * 3 + 1] = warmColor.g * brightness;
+        colors[i * 3 + 2] = warmColor.b * brightness;
+
+        particles.push({ angle, dist, baseY: y, speed: rand(0.002, 0.005), wobble: rand(0, Math.PI * 2) });
+      }
+
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const sizes = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        sizes[i] = 1.4;
+      }
+      geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {},
+        vertexShader: roundParticleVertexShader,
+        fragmentShader: roundParticleFragmentShader,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0,  // Start invisible
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const points = new THREE.Points(geo, mat);
+      points.userData = { particles };
+      scene.add(points);
+      return points;
+    }
+
+    function updateNebula(nebula, speed, pull) {
+      if (!nebula) return;
+      const particles = nebula.userData.particles;
+      const pos = nebula.geometry.attributes.position.array;
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.angle += p.speed * speed;
+        p.wobble += 0.012;
+        p.dist = Math.max(3, p.dist - pull * 0.1);
+        pos[i * 3] = Math.cos(p.angle) * p.dist;
+        pos[i * 3 + 1] = p.baseY + Math.sin(p.wobble) * 1;
+        pos[i * 3 + 2] = Math.sin(p.angle) * p.dist;
+
+        if (p.dist < 4 && Math.random() < 0.004) { p.dist = rand(15, 30); p.angle = rand(0, Math.PI * 2); }
+      }
+      nebula.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // CORE - uses emissive for bloom glow instead of 2D layers
+    function createCore() {
+      const group = new THREE.Group();
+
+      // Core mesh with emissive material for bloom glow
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 4,  // Increased for brighter glow
+        roughness: 0,
+        metalness: 0
+      });
+      const coreGeo = new THREE.SphereGeometry(1.2, 64, 64); // Increased segments from 32 for smoother bloom
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      group.add(coreMesh);
+      group.coreMesh = coreMesh;
+
+      // 2D glow layers for round bloom effect - with prismatic color cycling
+      group.glowLayers = [];
+      const glowColors = [0xffeecc, 0xffcc88, 0xffaa66, 0xff8844];
+      for (let i = 0; i < 6; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: glowColors[i % glowColors.length],
+          transparent: true,
+          opacity: 0.25 / (i * 0.5 + 1),
+          depthWrite: false
+        });
+        const geo = new THREE.SphereGeometry(1.8 + i * 0.8, 32, 32);
+        const mesh = new THREE.Mesh(geo, mat);
+        group.add(mesh);
+        group.glowLayers.push(mesh);
+      }
+
+      const light = new THREE.PointLight(0xffaa66, 2, 100);
+      group.add(light);
+      group.add(light);
+      group.light = light;
+
+      scene.add(group);
+      return group;
+    }
+
+    function updateCore(size, chroma, pulseValue, colorProgress, targetColor, prismaticTime) {
+      if (!coreGroup) return;
+
+      // Smooth pulse - just like 2D: gentle sine wave scale
+      const pulseScale = 1 + pulseValue * 0.12;
+      const finalSize = size * pulseScale;
+      coreGroup.scale.setScalar(finalSize);
+
+      // Transition from white to target rarity color
+      const white = new THREE.Color(0xffffff);
+      const target = new THREE.Color(targetColor);
+      const currentColor = white.clone().lerp(target, colorProgress);
+
+      coreGroup.light.color.copy(currentColor);
+      coreGroup.light.intensity = 2 + size + chroma * 1.5 + pulseValue * 1;
+
+      // Apply prismatic colors to 2D glow layers for round bloom
+      coreGroup.glowLayers.forEach((layer, i) => {
+        if (chroma > 0.3 && prismaticTime !== undefined) {
+          // Smooth prismatic color interpolation with layer offset
+          const colorSpeed = 2;
+          const colorProgress = (prismaticTime * colorSpeed + i * 0.3) % PRISMATIC.length;
+          const colorIndex1 = Math.floor(colorProgress);
+          const colorIndex2 = (colorIndex1 + 1) % PRISMATIC.length;
+          const t = colorProgress - colorIndex1;
+
+          const color1 = new THREE.Color(PRISMATIC[colorIndex1]);
+          const color2 = new THREE.Color(PRISMATIC[colorIndex2]);
+          const prismaticColor = color1.clone().lerp(color2, t);
+
+          layer.material.color.copy(prismaticColor);
+          layer.material.opacity = (0.25 / (i * 0.5 + 1)) * (1 + chroma * 0.3) * (1 + pulseValue * 0.2);
+        } else {
+          // Warm glow when not prismatic
+          const warmWhite = new THREE.Color(0xffeecc);
+          const glowColor = warmWhite.clone().lerp(new THREE.Color(targetColor), colorProgress);
+          layer.material.color.copy(glowColor);
+          layer.material.opacity = (0.25 / (i * 0.5 + 1)) * (1 + pulseValue * 0.15);
+        }
+      });
+
+      // Apply prismatic colors to core emissive for bloom glow
+      // Lower threshold (0.3) so it starts earlier with muted rainbow
+      if (chroma > 0.3 && prismaticTime !== undefined) {
+        // Smooth color interpolation between adjacent prismatic colors
+        const colorSpeed = 2; // Slower for smoother transitions
+        const colorProgress = (prismaticTime * colorSpeed) % PRISMATIC.length;
+        const colorIndex1 = Math.floor(colorProgress);
+        const colorIndex2 = (colorIndex1 + 1) % PRISMATIC.length;
+        const t = colorProgress - colorIndex1; // Fractional part for lerp
+
+        // Interpolate between two adjacent colors
+        const color1 = new THREE.Color(PRISMATIC[colorIndex1]);
+        const color2 = new THREE.Color(PRISMATIC[colorIndex2]);
+        const prismaticColor = color1.clone().lerp(color2, t);
+
+        coreGroup.coreMesh.material.color.set(prismaticColor);
+        coreGroup.coreMesh.material.emissive.copy(prismaticColor);
+        coreGroup.coreMesh.material.emissiveIntensity = 4 + chroma * 3;  // Stronger glow
+      } else {
+        coreGroup.coreMesh.material.color.copy(currentColor);
+        coreGroup.coreMesh.material.emissive.copy(currentColor);
+        coreGroup.coreMesh.material.emissiveIntensity = 3;
+      }
+    }
+    // BLACK HOLE - improved with all fixes
+    function createBlackHole() {
+      const group = new THREE.Group();
+
+      // Event horizon - prominent black sphere, same size as perpendicular torus (4.2)
+      const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const holeGeo = new THREE.SphereGeometry(4.2, 32, 32);  // Match warp ring size
+      const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+      group.add(holeMesh);
+      group.holeMesh = holeMesh;
+
+      // Create a tilted group for the disc system (20 degrees like planetary orbit)
+      const discGroup = new THREE.Group();
+      discGroup.rotation.x = Math.PI / 9;  // 20 degrees tilt
+      group.add(discGroup);
+      group.discGroup = discGroup;
+
+      // Photon ring - THIN, starts WHITE (in tilted group)
+      const photonGeo = new THREE.TorusGeometry(3.5, 0.12, 16, 64);
+      const photonMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1,
+        emissive: 0xffffff,
+        emissiveIntensity: 2,
+        roughness: 0.1,
+        metalness: 0.1
+      });
+      const photon = new THREE.Mesh(photonGeo, photonMat);
+      photon.rotation.x = Math.PI / 2;
+      discGroup.add(photon);
+      group.photon = photon;
+
+      // Accretion disc - starts white, will turn color (in tilted group)
+      group.discLayers = [];
+      for (let i = 0; i < 4; i++) {
+        const discGeo = new THREE.TorusGeometry(5 + i * 1.5, 0.8 - i * 0.1, 8, 64);
+        const discMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.8 - i * 0.15,
+          side: THREE.DoubleSide,
+          emissive: 0xffffff,
+          emissiveIntensity: 1.5,
+          roughness: 0.2,
+          metalness: 0.1
+        });
+        const disc = new THREE.Mesh(discGeo, discMat);
+        disc.rotation.x = Math.PI / 2 + rand(-0.02, 0.02);
+        discGroup.add(disc);
+        group.discLayers.push(disc);
+      }
+
+      // Outer glow - starts white (in tilted group) - MeshStandardMaterial
+      group.glowRings = [];
+      for (let i = 0; i < 2; i++) {
+        const glowGeo = new THREE.TorusGeometry(10 + i * 3, 1, 8, 48);
+        const glowMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.12 / (i + 1),
+          side: THREE.DoubleSide,
+          emissive: 0xffffff,
+          emissiveIntensity: 1,
+          roughness: 0.3,
+          metalness: 0
+        });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        glow.rotation.x = Math.PI / 2;
+        discGroup.add(glow);
+        group.glowRings.push(glow);
+      }
+
+      // PERPENDICULAR light warp ring (light from behind being bent) - MeshStandardMaterial
+      // This faces camera, NOT part of tilted disc group
+      const warpGeo = new THREE.TorusGeometry(4.2, 0.2, 16, 64);
+      const warpMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+        emissive: 0xffffff,
+        emissiveIntensity: 2.5,
+        roughness: 0.1,
+        metalness: 0.1
+      });
+      const warpRing = new THREE.Mesh(warpGeo, warpMat);
+      group.add(warpRing);
+      group.warpRing = warpRing;
+
+      // Extra glow ring behind the warp ring - MeshStandardMaterial
+      const warpGlowGeo = new THREE.TorusGeometry(4.2, 0.5, 16, 64);
+      const warpGlowMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.3,
+        emissive: 0xffffff,
+        emissiveIntensity: 1.5,
+        roughness: 0.2,
+        metalness: 0
+      });
+      const warpGlow = new THREE.Mesh(warpGlowGeo, warpGlowMat);
+      group.add(warpGlow);
+      group.warpGlow = warpGlow;
+
+      // Light source
+      const light = new THREE.PointLight(0xffffff, 3, 80);
+      group.add(light);
+      group.light = light;
+
+      group.scale.set(0, 0, 0);
+      scene.add(group);
+      return group;
+    }
+
+    // Transition black hole from white to rarity color
+    function transitionBlackHoleColor(bh, targetColor, t) {
+      if (!bh) return;
+      const white = new THREE.Color(0xffffff);
+      const color = new THREE.Color(targetColor);
+      const current = white.clone().lerp(color, t);
+
+      bh.photon.material.color.copy(current);
+      if (bh.photon.material.emissive) bh.photon.material.emissive.copy(current);
+      bh.warpRing.material.color.copy(current);
+      if (bh.warpRing.material.emissive) bh.warpRing.material.emissive.copy(current);
+      if (bh.warpGlow) {
+        bh.warpGlow.material.color.copy(current);
+        if (bh.warpGlow.material.emissive) bh.warpGlow.material.emissive.copy(current);
+      }
+      bh.discLayers.forEach(d => {
+        d.material.color.copy(current);
+        if (d.material.emissive) d.material.emissive.copy(current);
+      });
+      bh.glowRings.forEach(g => {
+        g.material.color.copy(current);
+        if (g.material.emissive) g.material.emissive.copy(current);
+      });
+      bh.light.color.copy(current);
+    }
+
+    // PARTICLE RING - warm white glow with individual spawning
+    class Ring {
+      constructor(count, rMin, rMax, ySpread, size, speed, ringIndex = 0) {
+        this.particles = [];
+        this.particleOpacities = []; // Track individual particle opacities
+        this.ringIndex = ringIndex; // Track which ring this is (0=innermost)
+        // Layered speed multipliers: inner rings faster, outer slower
+        this.speedMultiplier = 1.6 - (ringIndex * 0.3);  // 1.6, 1.3, 1.0, 0.7 for rings 0-3
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const opacities = new Float32Array(count); // Individual opacities
+
+        // Start with warm white/gold colors for particles
+        const warmColors = [0xffffff, 0xfff8e7, 0xffeecc, 0xffe4b5, 0xffd699];
+
+        // Calculate base spawn delay for this ring (inner rings spawn first)
+        const ringBaseDelay = ringIndex * 0.8; // Each ring starts 0.8s after the previous
+
+        for (let i = 0; i < count; i++) {
+          const angle = rand(0, Math.PI * 2), radius = rand(rMin, rMax);
+          const yMult = Math.min(1, (radius - rMin) / (rMax - rMin));
+          const y = rand(-ySpread * yMult, ySpread * yMult);
+
+          // Spawn delay is ring base delay + small stagger within ring
+          const spawnDelay = ringBaseDelay + (i * 0.02);
+
+          this.particles.push({
+            angle, radius, baseRadius: radius, baseY: y,
+            speed: rand(0.8, 1.2) * speed,
+            spawnDelay,
+            opacity: 0,
+            targetOpacity: 1
+          });
+
+          positions[i * 3] = Math.cos(angle) * radius;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = Math.sin(angle) * radius;
+
+          // Warm white/gold color
+          const warmColor = new THREE.Color(warmColors[i % warmColors.length]);
+          colors[i * 3] = warmColor.r;
+          colors[i * 3 + 1] = warmColor.g;
+          colors[i * 3 + 2] = warmColor.b;
+
+          opacities[i] = 0; // Start invisible
+          this.particleOpacities.push(0);
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geo.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
+
+        const sizes = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+          // Larger particles with variety: 60% large (1.2-2.5x), 40% small (0.5-1.2x)
+          const isLarge = Math.random() < 0.6;
+          sizes[i] = size * (isLarge ? rand(1.2, 2.5) : rand(0.5, 1.2));
+        }
+        geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const mat = new THREE.ShaderMaterial({
+          uniforms: {},
+          vertexShader: roundParticleVertexShader,
+          fragmentShader: roundParticleFragmentShader,
+          transparent: true,
+          opacity: 1, // Material opacity is 1, we control individual particles
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          vertexColors: true
+        });
+        this.mesh = new THREE.Points(geo, mat);
+        this.spawnTime = performance.now();
+        this.colorCycleTime = 0;
+        scene.add(this.mesh);
+      }
+      update(speedMult, pull, elapsedTime) {
+        // Layered speed: inner rings faster, outer rings slower
+        const layeredSpeed = speedMult * this.speedMultiplier;
+        const pos = this.mesh.geometry.attributes.position.array;
+        const opacityAttr = this.mesh.geometry.attributes.opacity;
+        const opacities = opacityAttr ? opacityAttr.array : null;
+
+        for (let i = 0; i < this.particles.length; i++) {
+          const p = this.particles[i];
+
+          // Handle individual particle spawning
+          if (elapsedTime !== undefined && p.spawnDelay !== undefined) {
+            const timeSinceStart = elapsedTime;
+            if (timeSinceStart >= p.spawnDelay) {
+              // Fade in faster for more immediate visibility
+              p.opacity = Math.min(p.targetOpacity, p.opacity + 0.05);
+            }
+            if (opacities) opacities[i] = p.opacity;
+          }
+
+          // Use layeredSpeed for differential ring motion
+          p.angle += p.speed * layeredSpeed;
+          p.radius = Math.max(1.5, p.radius - pull);
+          pos[i * 3] = Math.cos(p.angle) * p.radius;
+          pos[i * 3 + 1] = p.baseY * (p.radius / p.baseRadius);
+          pos[i * 3 + 2] = Math.sin(p.angle) * p.radius;
+
+          if (p.radius < 2 && Math.random() < 0.006) { p.radius = p.baseRadius * rand(0.5, 1); p.angle = rand(0, Math.PI * 2); }
+        }
+        this.mesh.geometry.attributes.position.needsUpdate = true;
+        if (opacities) opacityAttr.needsUpdate = true;
+      }
+      collapseToDisc(t) {
+        const pos = this.mesh.geometry.attributes.position.array;
+        for (let i = 0; i < this.particles.length; i++) {
+          const p = this.particles[i];
+          p.angle += p.speed * 5;
+          p.radius = lerp(p.radius, rand(4, 10), t * 0.05);
+          pos[i * 3] = Math.cos(p.angle) * p.radius;
+          pos[i * 3 + 1] = lerp(pos[i * 3 + 1], rand(-0.2, 0.2), t * 0.08);
+          pos[i * 3 + 2] = Math.sin(p.angle) * p.radius;
+        }
+        this.mesh.geometry.attributes.position.needsUpdate = true;
+      }
+      explode(t) {
+        const pos = this.mesh.geometry.attributes.position.array;
+        for (let i = 0; i < this.particles.length; i++) {
+          const p = this.particles[i];
+          if (!p.explodeSpeed) p.explodeSpeed = rand(1.5, 5);
+          pos[i * 3] = Math.cos(p.angle) * p.explodeSpeed * t * 30;
+          pos[i * 3 + 1] = p.baseY + rand(-0.2, 0.2) * t * 15;
+          pos[i * 3 + 2] = Math.sin(p.angle) * p.explodeSpeed * t * 30;
+        }
+        this.mesh.geometry.attributes.position.needsUpdate = true;
+        this.mesh.material.opacity = Math.max(0, this.mesh.material.opacity - 0.015);
+      }
+      fadeIn(target, dur = 0.5) {
+        const start = this.mesh.material.opacity, startT = performance.now();
+        const tick = () => { const t = Math.min(1, (performance.now() - startT) / (dur * 1000)); this.mesh.material.opacity = lerp(start, target, t); if (t < 1) requestAnimationFrame(tick); };
+        tick();
+      }
+      setColor(c) {
+        const col = this.mesh.geometry.attributes.color.array;
+        const targetColor = new THREE.Color(c);
+        for (let i = 0; i < this.particles.length; i++) {
+          col[i * 3] = targetColor.r;
+          col[i * 3 + 1] = targetColor.g;
+          col[i * 3 + 2] = targetColor.b;
+        }
+        this.mesh.geometry.attributes.color.needsUpdate = true;
+      }
+      updateChromaticColors(time) {
+        const col = this.mesh.geometry.attributes.color.array;
+        for (let i = 0; i < this.particles.length; i++) {
+          const colorIndex = Math.floor((i + time * 10) % CHROMATIC.length);
+          const color = new THREE.Color(CHROMATIC[colorIndex]);
+          col[i * 3] = color.r;
+          col[i * 3 + 1] = color.g;
+          col[i * 3 + 2] = color.b;
+        }
+        this.mesh.geometry.attributes.color.needsUpdate = true;
+      }
+      updatePrismaticColors(time) {
+        // This function is no longer used for rings, prismatic colors are now on core glow layers
+        // Keeping it for potential future use or if other elements need it.
+        const col = this.mesh.geometry.attributes.color.array;
+        for (let i = 0; i < this.particles.length; i++) {
+          const colorIndex = Math.floor((i + time * 8) % PRISMATIC.length);
+          const color = new THREE.Color(PRISMATIC[colorIndex]);
+          col[i * 3] = color.r;
+          col[i * 3 + 1] = color.g;
+          col[i * 3 + 2] = color.b;
+        }
+        this.mesh.geometry.attributes.color.needsUpdate = true;
+      }
+      fadeOut(speed = 0.02) {
+        const sizes = this.mesh.geometry.attributes.size;
+        for (let i = 0; i < this.particles.length; i++) {
+          const p = this.particles[i];
+          p.targetOpacity = 0;
+          p.opacity = Math.max(0, p.opacity - speed);
+
+          // Scale down particle size as it fades (implosion effect)
+          if (sizes) {
+            sizes.array[i] *= (0.97 - speed * 0.8); // Shrink proportional to fade speed
+          }
+        }
+        const opacities = this.mesh.geometry.attributes.opacity.array;
+        for (let i = 0; i < this.particles.length; i++) {
+          opacities[i] = this.particles[i].opacity;
+        }
+        this.mesh.geometry.attributes.opacity.needsUpdate = true;
+        if (sizes) sizes.needsUpdate = true;
+      }
+      destroy() { scene.remove(this.mesh); }
+    }
+
+    // EMOTES
+    function createEmoteSprite(emoji) {
+      const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d'); ctx.font = '48px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, 32, 32);
+      const tex = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      const sprite = new THREE.Sprite(mat); sprite.scale.set(2.5, 2.5, 1); return sprite;
+    }
+
+    let emoteSpawnActive = false, emoteSpawnRate = 220;
+    function spawnEmote() {
+      if (!emoteSpawnActive || skip) return;
+      const sprite = createEmoteSprite(EMOTES[Math.floor(Math.random() * EMOTES.length)]);
+      const angle = rand(0, Math.PI * 2), startDist = 50, startY = rand(-10, 10);
+      sprite.position.set(Math.cos(angle) * startDist, startY, Math.sin(angle) * startDist);
+      sprite.userData = { angle, startDist, startY, startTime: performance.now(), duration: rand(800, 1100) };
+      scene.add(sprite); emoteSprites.push(sprite);
+      if (emoteSpawnActive && !skip) setTimeout(spawnEmote, emoteSpawnRate + rand(0, emoteSpawnRate * 0.2));
+    }
+
+    function updateEmotes() {
+      const toRemove = [];
+      emoteSprites.forEach(sprite => {
+        const d = sprite.userData, t = (performance.now() - d.startTime) / d.duration;
+        if (t >= 1) { toRemove.push(sprite); state.coreSize = Math.min(1.8, state.coreSize + 0.012); return; }
+        const eased = t * t * t;
+        sprite.position.set(Math.cos(d.angle) * lerp(d.startDist, 1, eased), lerp(d.startY, 0, eased), Math.sin(d.angle) * lerp(d.startDist, 1, eased));
+        sprite.scale.setScalar(2.5 * lerp(1, 0.1, eased));
+        sprite.material.opacity = t < 0.2 ? 1 : t < 0.55 ? lerp(1, 0, (t - 0.2) / 0.35) : 0;
+      });
+      toRemove.forEach(s => { scene.remove(s); emoteSprites.splice(emoteSprites.indexOf(s), 1); });
+    }
+
+    // GOLD DUST
+    function createGoldDust() {
+      const geo = new THREE.SphereGeometry(0.25, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: rand(0.5, 0.9) });
+      const mesh = new THREE.Mesh(geo, mat);
+      const angle = rand(0, Math.PI * 2), dist = rand(8, 25);
+      mesh.position.set(Math.cos(angle) * dist, rand(-4, 4), Math.sin(angle) * dist);
+      mesh.userData = { angle, dist, twinkle: rand(0, Math.PI * 2) };
+      scene.add(mesh); return mesh;
+    }
+
+    function updateGoldDust() {
+      const time = performance.now() / 1000;
+      goldDust.forEach(g => {
+        g.userData.angle += 0.01;
+        g.position.x = Math.cos(g.userData.angle) * g.userData.dist;
+        g.position.z = Math.sin(g.userData.angle) * g.userData.dist;
+        g.material.opacity = 0.3 + 0.6 * Math.sin(time * 2 + g.userData.twinkle);
+      });
+    }
+
+    // CARDS
+    function genCards(n, force) {
+      const cards = [];
+      for (let i = 0; i < n; i++) {
+        const r = Math.random() * 100;
+        let rarity = r < 3 ? 'legendary' : r < 12 ? 'epic' : r < 34 ? 'rare' : 'common';
+        if (force && force !== 'random' && i === n - 1 && !cards.some(c => c.rarity === force)) rarity = force;
+        cards.push({ rarity, emote: EMOTES[Math.floor(Math.random() * EMOTES.length)] });
+      }
+      return cards.sort((a, b) => ['common', 'rare', 'epic', 'legendary'].indexOf(a.rarity) - ['common', 'rare', 'epic', 'legendary'].indexOf(b.rarity));
+    }
+
+    function bestRarity(cards) {
+      return cards.reduce((b, c) => ['common', 'rare', 'epic', 'legendary'].indexOf(c.rarity) > ['common', 'rare', 'epic', 'legendary'].indexOf(b) ? c.rarity : b, 'common');
+    }
+
+    function showCards(cards) {
+      // Initialize Glitter System if needed
+      if (!glitterSystem) glitterSystem = new GlitterSystem();
+
+      // Clear old 3D cards
+      cardObjects.forEach(c => {
+        scene.remove(c.mesh);
+        if (c.tex) c.tex.dispose();
+      });
+      cardObjects = [];
+
+      // CSS Overlay clear
+      const cont = document.getElementById('cards'); cont.innerHTML = '';
+
+      // Separate Legendary
+      const legendaryIndex = cards.findIndex(c => c.rarity === 'legendary');
+
+      // Logic for grid positions (virtual targets)
+      const cols = Math.min(cards.length, 5);
+      const rows = Math.ceil(cards.length / cols);
+      const spacing = 4.5; // 3D units
+      const rowSpacing = 6.0;
+      const startX = -((cols - 1) * spacing) / 2;
+      const startY = ((rows - 1) * rowSpacing) / 2 + 3; // Lift up a bit
+
+      cards.forEach((card, i) => {
+        // Skip legendary for main burst
+        if (i === legendaryIndex) return;
+
+        const card3D = new Card3D(card);
+        scene.add(card3D.mesh);
+        cardObjects.push(card3D);
+
+        // Start Position: Center, compressed
+        card3D.mesh.position.set(0, 0, -20);
+        card3D.mesh.scale.setScalar(0);
+
+        // Target Position: Grid + Random Depth variation for "Cone" feel
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const targetX = startX + col * spacing;
+        const targetY = startY - row * rowSpacing;
+        const targetZ = rand(-2, 2); // Depth variation
+
+        card3D.targetPos.set(targetX, targetY, targetZ);
+
+        // Burst Animation: Delay based on index
+        setTimeout(() => {
+          // Initial explosion velocity
+          const angle = (i / cards.length) * Math.PI * 2;
+          card3D.mesh.scale.setScalar(1);
+
+          // Emote burst handled by glitter currently
+
+        }, 100 + i * 150);
+      });
+
+      // Legendary Entrance
+      if (legendaryIndex !== -1) {
+        setTimeout(() => {
+          const card = cards[legendaryIndex];
+          // Create hidden gold card
+          const legCard = new Card3D(card, true);
+          scene.add(legCard.mesh);
+          cardObjects.push(legCard);
+
+          // Start deep below
+          legCard.mesh.position.set(0, -60, -20); // Deep below
+          legCard.mesh.rotation.x = -Math.PI / 8; // Tilted up slightly
+
+          // Target: Dead center, much closer
+          legCard.targetPos.set(0, 0.5, 25); // Z=25 is much closer to camera (at ~68)
+
+        }, 1800); // Wait for others to settle
+
+        // Setup click listener for 3D cards is handled in animate/init via raycaster
+      } else {
+        // Enable UI sooner if no legendary
+        setTimeout(() => { document.getElementById('pull-btn').disabled = false; }, 2000);
+      }
+    }
+
+    // CLEANUP
+    function cleanup() {
+      skip = false; pulseActive = false; pulsePhase = 0;
+      rings.forEach(r => r.destroy()); rings = [];
+      emoteSprites.forEach(e => scene.remove(e)); emoteSprites = [];
+      goldDust.forEach(g => scene.remove(g)); goldDust = [];
+      if (nebulaPoints) { scene.remove(nebulaPoints); nebulaPoints = null; }
+      if (coreGroup) { scene.remove(coreGroup); coreGroup = null; }
+      if (blackHole) { scene.remove(blackHole); blackHole = null; }
+      if (legendaryHint) { scene.remove(legendaryHint); legendaryHint = null; }
+      bloomPass.strength = 0.8; bloomPass.radius = 0.3;
+      state = { speed: 1, pull: 0, coreSize: 0.6, chroma: 0, colorProgress: 0, targetColor: 0xffffff, camAngle: 0, camY: 25, camDist: 70, targetCamAngle: 0, targetCamY: 25, targetCamDist: 70, shakeAmount: 0, phase: 'idle', explodeTime: 0, animationStartTime: 0 };
+      document.getElementById('cards').innerHTML = '';
+    }
+
+    // MAIN ANIMATION
+    async function doPull() {
+      if (isAnimating) return;
+      isAnimating = true; skip = false;
+      document.getElementById('pull-btn').disabled = true;
+      document.getElementById('skip-btn').classList.add('visible');
+      cleanup();
+
+      const cards = genCards(parseInt(document.getElementById('card-count').value), document.getElementById('force-rarity').value);
+      const best = bestRarity(cards), color = RARITY_COLORS[best], isLeg = best === 'legendary';
+
+      // Set the target color for core transition
+      state.targetColor = color;
+      state.colorProgress = 0;
+
+      // Timing config
+      const cfg = {
+        common: { emotes: 2.0, build: 2.0, spin: 1.5, pulses: 4, hold: 1.5 },
+        rare: { emotes: 2.2, build: 2.2, spin: 1.8, pulses: 5, hold: 1.8 },
+        epic: { emotes: 2.5, build: 2.5, spin: 2.0, pulses: 6, hold: 2.0 },
+        legendary: { emotes: 2.8, build: 2.8, spin: 2.2, pulses: 7, hold: 2.5 }
+      }[best];
+
+      // === START WITH JUST THE SUN ===
+      coreGroup = createCore();
+
+      state.pull = 0;
+      state.speed = 2.0;
+
+      // RESET SCENE
+      if (blackHole) {
+        blackHole.visible = true;
+        blackHole.scale.setScalar(0.01);
+      }
+      if (coreGroup) {
+        coreGroup.visible = true;
+        // Reset core rotation
+        coreGroup.rotation.set(0, 0, 0);
+      }
+
+      // Clear 3D cards from scene if any exist (e.g. from previous run)
+      cardObjects.forEach(c => {
+        scene.remove(c.mesh);
+        if (c.tex) c.tex.dispose();
+      });
+      cardObjects = [];
+
+      bloomPass.strength = 1.25; // Reset bloom
+      document.getElementById('cards').innerHTML = ''; // Clear css overlay
+
+      // Camera starts above - NO immediate zoom, let it stay steady at first
+      state.camY = 25;
+      state.camDist = 68;  // Start closer, no sudden zoom
+      state.targetCamY = 25;  // Same as starting, no immediate change
+      state.targetCamDist = 68;  // Same as starting
+      state.animationStartTime = performance.now(); // Track start time for particle spawning
+
+      // === PHASE 1: EMOTES FLY IN, feeding the sun ===
+      state.phase = 'emotes';
+
+      // Start emotes immediately
+      emoteSpawnActive = true;
+      emoteSpawnRate = 180;
+      for (let i = 0; i < 3; i++)setTimeout(spawnEmote, i * 80);
+
+      // Create rings with EVEN distribution for full disc coverage
+      // All rings get 500 particles each for uniform density
+      nebulaPoints = createNebula(400); // Increased from 200
+      rings = [
+        new Ring(300, 2, 8, 0.4, 0.5, 0.006, 0),      // Inner - fewer
+        new Ring(400, 8, 16, 1.5, 0.55, 0.005, 1),    // Fewer in middle
+        new Ring(500, 16, 26, 4, 0.6, 0.004, 2),      // was 600
+        new Ring(700, 26, 40, 6, 0.65, 0.003, 3)      // Outer - more particles
+      ]; // Total: 2000 particles evenly distributed + 400 nebula = 2400
+
+      const emoteSteps = Math.floor(cfg.emotes / 0.15);
+      for (let i = 0; i < emoteSteps; i++) {
+        if (skip) break;
+        await iSleep(0.15);
+
+        // Sun grows as emotes feed it
+        state.coreSize = Math.min(1.0, state.coreSize + 0.015);
+        state.colorProgress = Math.min(0.25, state.colorProgress + 0.01);
+        state.targetCamAngle += 0.008;
+        emoteSpawnRate = Math.max(100, emoteSpawnRate - 5);
+
+        // First ring starts to appear after some emotes - removed fade, particles spawn individually
+        // Particles handle their own spawning now via elapsed time
+
+        // Nebula barely visible
+        if (nebulaPoints && nebulaPoints.material.opacity < 0.15) {
+          nebulaPoints.material.opacity += 0.005;
+        }
+
+        bloomPass.strength = Math.min(1.0, bloomPass.strength + 0.008);
+      }
+
+      // === PHASE 2: PARTICLES BUILD UP as discs form ===
+      state.phase = 'build';
+      state.targetCamY = 16;  // Smoother: 25 → 16 instead of 25 → 12
+      state.targetCamDist = 64;  // Smoother: 68 → 64 instead of 68 → 60
+
+      const buildSteps = Math.floor(cfg.build / 0.12);
+      for (let i = 0; i < buildSteps; i++) {
+        if (skip) break;
+        await iSleep(0.12);
+
+        // Smooth gradual speed increase (not constant)
+        const buildT = i / buildSteps;
+        state.speed += 0.03 + buildT * 0.09;  // 0.03 to 0.12, smoother ramp
+        state.coreSize = Math.min(1.3, state.coreSize + 0.01);
+        state.colorProgress = Math.min(0.5, state.colorProgress + 0.012);
+        state.targetCamAngle += 0.012;
+        emoteSpawnRate = Math.max(80, emoteSpawnRate - 3);
+
+        // Rings fade in progressively
+        const progress = i / buildSteps;
+        if (progress > 0.2) rings[0].mesh.material.opacity = Math.min(0.5, rings[0].mesh.material.opacity + 0.015);
+        if (progress > 0.35) rings[1].mesh.material.opacity = Math.min(0.45, rings[1].mesh.material.opacity + 0.012);
+        if (progress > 0.5) rings[2].mesh.material.opacity = Math.min(0.4, rings[2].mesh.material.opacity + 0.01);
+        if (progress > 0.65) rings[3].mesh.material.opacity = Math.min(0.35, rings[3].mesh.material.opacity + 0.008);
+
+        // Nebula builds
+        if (nebulaPoints && nebulaPoints.material.opacity < 0.5) {
+          nebulaPoints.material.opacity += 0.008;
+        }
+
+        if (isLeg && Math.random() < 0.2 && goldDust.length < 12) goldDust.push(createGoldDust());
+        bloomPass.strength = Math.min(1.3, bloomPass.strength + 0.01);
+      }
+
+      emoteSpawnActive = false;
+
+      // === PHASE 3: SPIN FASTER - gradual acceleration ===
+      state.phase = 'spin';
+      // DON'T jump to speed=4, let it accelerate gradually from current speed
+      state.pull = 0;  // NO pull during spin phase!
+      state.targetCamY = 8;   // Smoother: 16 → 8 instead of 16 → 4
+      state.targetCamDist = 56;  // Smoother: 64 → 56 instead of 64 → 52
+
+      // === LEGENDARY HINT comes here (during spin phase) ===
+      if (isLeg && !skip) {
+        legendaryHint = createLegendaryHint();
+        playLegendaryHint(legendaryHint);
+      }
+
+      const spinSteps = Math.floor(cfg.spin / 0.1);
+      for (let i = 0; i < spinSteps; i++) {
+        if (skip) break;
+        await iSleep(0.1);
+
+        // Faster acceleration throughout spin phase (chromatic)
+        const t = i / spinSteps;  // 0 to 1
+        const acceleration = 0.15 + t * 0.4;  // Start faster: 0.15 to 0.55 per step
+        state.speed += acceleration;
+        // NO pull during spin phase - particles stay spread!
+        state.coreSize = Math.min(1.6, state.coreSize + 0.012);
+        state.colorProgress = Math.min(0.85, state.colorProgress + 0.02);
+        state.targetCamAngle += 0.012 + t * 0.015;  // Smooth camera rotation that accelerates
+
+        // Don't update particle colors - they stay warm white
+        // Prismatic colors will be on the core glow layers via chroma
+
+        if (i > spinSteps * 0.4) state.shakeAmount = Math.min(0.5, state.shakeAmount + 0.025);
+        // Ensure chroma reaches 1.0 for ALL rarities to activate prismatic effect
+        if (i > spinSteps * 0.5) state.chroma = Math.min(1.0, state.chroma + 0.04);
+
+        // Rotation now happens in main animate() loop during pulse phase only
+
+        bloomPass.strength = Math.min(1.8, bloomPass.strength + 0.025);
+      }
+
+      // Legendary final boost (extra intensity, but chroma already at 1.0)
+      if (isLeg && !skip) {
+        state.shakeAmount = 0.8;
+        // NO sudden speed boost - speed builds up during chromatic phase
+        // state.speed += 3;  // Removed to prevent sudden jump
+        // Chroma already at 1.0 from spin phase, no need to set again
+        state.coreSize += 0.3;
+        state.colorProgress = 1;
+        bloomPass.strength = 2.2;
+        goldDust.forEach(g => scene.remove(g));
+        goldDust = [];
+      }
+
+      // === PHASE 4: PULSES - sun pulses slow to fast 150bpm ===
+      state.phase = 'pulses';
+      state.pull = 0;  // Keep pull at 0 during pulse phase!
+      state.colorProgress = 1;
+      pulseActive = true;
+      pulsePhase = 0;
+
+      const startBPM = 70, endBPM = 150;
+
+      for (let i = 0; i < cfg.pulses; i++) {
+        if (skip) break;
+
+        const t = i / (cfg.pulses - 1);
+        pulseBPM = startBPM + (endBPM - startBPM) * t;
+        pulseIntensity = 0.15 + t * 0.3;
+
+        const beatDuration = 60 / pulseBPM;
+        await iSleep(beatDuration);
+
+        state.shakeAmount = Math.min(0.8, 0.3 + i * 0.08);  // Smoother shake buildup
+        const pt = i / cfg.pulses;  // 0 to 1
+        state.speed += 0.2 + pt * 0.5;  // FASTER acceleration: 0.2 to 0.7 per pulse
+        // NO PULL during pulse phase - particles stay spread out!
+
+        // DON'T fade particles here - let them stay visible and get pulled in later!
+        // if (i > cfg.pulses * 0.4) {
+        //   rings.forEach(r => r.fadeOut(0.006));
+        // }
+
+        // Rotation now happens in main animate() loop for smoothness
+
+        bloomPass.strength = Math.min(2.2, bloomPass.strength + 0.1);
+      }
+
+      pulseActive = false;
+
+      // === BLACK HOLE TRANSITION ===
+      if (!skip) {
+        state.phase = 'collapse';
+        state.chroma = 0;
+        blackHole = createBlackHole();  // Starts white
+        if (nebulaPoints) nebulaPoints.material.opacity = 0;
+
+        // Camera starts moving to the plane
+        state.targetCamY = 0;
+        state.targetCamDist = 50;
+
+        // Particles get PULLED INWARD rapidly, black hole appears FAST
+        const fadeSteps = 10;  // Reduced from 25 for faster transition
+        for (let i = 0; i < fadeSteps; i++) {
+          if (skip) break;
+          await iSleep(0.03);  // Faster steps
+          const t = i / fadeSteps;
+          const implosionEase = easeInBack(t); // Sudden pull-in
+
+          // Only pull particles in LAST 40% - they stay spread out until right before black hole
+          if (t > 0.6) {
+            state.pull += 0.5;  // Very strong pull when it kicks in
+          } else {
+            state.pull = 0; // Ensure no pull yet
+          }
+
+          // NO manual r.update() here - let animate() loop handle it!
+
+          // NO fadeOut - let particles get pulled all the way to center!
+
+          // Fade out core with eased implosion
+          if (coreGroup) {
+            state.coreSize *= 0.92;
+            const scaleDown = 1 - (implosionEase * 0.7); // Scale from 1.0 to 0.3
+            coreGroup.scale.setScalar(scaleDown);
+            coreGroup.glowLayers.forEach(l => l.material.opacity *= 0.92);
+          }
+
+          // Black hole INSTANT appearance at 70% through
+          const explosiveScale = (t < 0.7) ? 0 : 0.95; // Hidden then BOOM
+          blackHole.scale.setScalar(explosiveScale);
+
+          // Transition black hole color
+          transitionBlackHoleColor(blackHole, color, (t < 0.7) ? 0 : 0.5);
+        }
+
+        // Final explosive POP
+        blackHole.scale.setScalar(1.0);
+        bloomPass.strength = 2.5;
+        state.shakeAmount = 0.6;
+      }
+
+      // === PHASE 5: BLACK HOLE COLLAPSE (continue growing) ===
+      if (!skip) {
+        // Black hole already created during fade-out, continue collapse animation
+
+        // Quick collapse to flatten rings to disc
+        const collapseSteps = 20;
+        for (let i = 0; i < collapseSteps; i++) {
+          if (skip) break;
+          await iSleep(0.035);
+          const t = i / collapseSteps;
+          state.coreSize *= 0.92;
+          if (coreGroup) coreGroup.glowLayers.forEach(l => l.material.opacity *= 0.9);
+
+          // Continue growing black hole from 0.6 to 1.1
+          const bhScale = 0.6 + t * 0.5;
+          blackHole.scale.setScalar(bhScale);
+
+          rings.forEach(r => { r.collapseToDisc(t); r.setColor(color); });
+          state.shakeAmount = 0.3 + t * 0.6;
+          bloomPass.strength = lerp(bloomPass.strength, 1.4, 0.04);
+
+          // Continue transition from white to rarity color
+          const colorT = 0.5 + t * 0.5; // Start from 50% (where fade left off)
+          transitionBlackHoleColor(blackHole, color, colorT);
+        }
+
+        // Remove core
+        if (coreGroup) { scene.remove(coreGroup); coreGroup = null; }
+
+        // === THE CALM BEFORE THE STORM ===
+        state.shakeAmount = 0.05;
+        bloomPass.strength = 1.0;
+        blackHole.scale.setScalar(1.1);
+
+        const holdTime = cfg.hold;
+        const holdSteps = Math.floor(holdTime / 0.04);
+
+        for (let i = 0; i < holdSteps; i++) {
+          if (skip) break;
+          await iSleep(0.04);
+
+          const breathe = Math.sin(i * 0.1) * 0.02;
+          blackHole.scale.setScalar(1.1 + breathe);
+
+          if (blackHole.light) {
+            blackHole.light.intensity = 3 + Math.sin(i * 0.15) * 0.3;
+          }
+
+          rings.forEach(r => {
+            r.update(2, 0);
+            // Rotate particle mesh to match black hole disc angle (20 degrees = Math.PI/9)
+            r.mesh.rotation.x = lerp(r.mesh.rotation.x, Math.PI / 9, 0.05);
+          });
+        }
+
+        // === BUILD UP TO BURST (simplified for smoother performance) ===
+        state.shakeAmount = 0.2; await iSleep(0.25);
+        blackHole.scale.setScalar(1.1);
+        bloomPass.strength = 1.5;
+
+        state.shakeAmount = 0.5; await iSleep(0.2);
+        blackHole.scale.setScalar(1.2);
+        bloomPass.strength = 2.0;
+
+        state.shakeAmount = 1.0; await iSleep(0.15);
+        blackHole.scale.setScalar(1.3);
+        bloomPass.strength = 2.5;
+      }
+
+      // === BURST (heavily optimized) ===
+      document.getElementById('skip-btn').classList.remove('visible');
+      state.phase = 'explode';
+      state.explodeTime = 0;
+      state.shakeAmount = isLeg ? 1.5 : 1.0; // Reduced shake
+      bloomPass.strength = 2.8; // Don't go to 3, less re-render
+
+      if (blackHole) {
+        // Simplified burst with easing - snappy growth
+        for (let i = 0; i < 8; i++) {
+          const t = i / 7; // 0 to 1
+          const easedScale = easeOutBack(t); // Snappy overshoot
+          const targetScale = 1.3 + easedScale * 1.5; // From 1.3 to 2.8 with easing
+          blackHole.scale.setScalar(targetScale);
+
+          blackHole.discLayers.forEach(d => d.material.opacity *= 0.85);
+          if (blackHole.photon) blackHole.photon.material.opacity *= 0.88;
+          if (blackHole.warpRing) blackHole.warpRing.material.opacity *= 0.88;
+          if (blackHole.warpGlow) blackHole.warpGlow.material.opacity *= 0.88;
+          await iSleep(0.04); // Use existing sleep instead of setInterval
+        }
+        scene.remove(blackHole);
+        blackHole = null;
+      }
+
+      // DESTROY all particle rings before showing cards!
+      rings.forEach(r => r.destroy());
+      rings = [];
+
+      // Small delay before showing cards to prevent lag spike
+      await sleep(0.05);
+      requestAnimationFrame(() => {
+        showCards(cards);
+        state.shakeAmount = 0;
+      });
+
+      const fade = setInterval(() => {
+        bloomPass.strength = Math.max(0.8, bloomPass.strength - 0.06);
+        if (bloomPass.strength <= 0.8) clearInterval(fade);
+      }, 30);
+
+      await sleep(1.2);
+      state.phase = 'idle';
+      state.phase = 'idle';
+      isAnimating = false;
+      // Only enable button if no legendary reveal is pending
+      if (document.querySelector('.hidden-legendary') === null) {
+        document.getElementById('pull-btn').disabled = false;
+      }
+      document.getElementById('skip-btn').classList.remove('visible');
+    }
+
+
+
+    // === GLITTER SYSTEM ===
+    class GlitterSystem {
+      constructor() {
+        this.particles = [];
+        const geo = new THREE.BufferGeometry();
+        const mat = new THREE.PointsMaterial({
+          size: 0.8,
+          vertexColors: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+          opacity: 0.8
+        });
+        this.mesh = new THREE.Points(geo, mat);
+        scene.add(this.mesh);
+      }
+
+      emit(position, rarity) {
+        // High density for shooting star trail
+        let count = 4;
+        let color = new THREE.Color();
+
+        if (rarity === 'rainbow') {
+          count = 5;
+          // Random bright color
+          color.setHSL(Math.random(), 1.0, 0.6);
+        } else {
+          count = rarity === 'legendary' ? 8 : rarity === 'epic' ? 6 : 4;
+          const colorHex = RARITY_COLORS[rarity];
+          color.set(colorHex);
+        }
+
+        for (let i = 0; i < count; i++) {
+          this.particles.push({
+            x: position.x + (Math.random() - 0.5) * 1.0,
+            y: position.y + (Math.random() - 0.5) * 1.0,
+            z: position.z + (Math.random() - 0.5) * 1.0,
+            vx: (Math.random() - 0.5) * 0.1, // Tighter burst
+            vy: (Math.random() - 0.5) * 0.1,
+            vz: (Math.random() - 0.5) * 0.1,
+            life: 1.0,
+            decay: rand(0.01, 0.03), // Longer trails
+            color: color
+          });
+        }
+      }
+
+      update() {
+        const positions = [];
+        const colors = [];
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.life -= p.decay;
+          p.x += p.vx; p.y += p.vy; p.z += p.vz;
+
+          if (p.life <= 0) {
+            this.particles.splice(i, 1);
+            continue;
+          }
+
+          positions.push(p.x, p.y, p.z);
+          colors.push(p.color.r, p.color.g, p.color.b);
+        }
+
+        const geo = this.mesh.geometry;
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+      }
+    }
+
+    // Global glitter system
+    let glitterSystem = null;
+
+    // === 3D CARD SYSTEM ===
+
+    // Helper to create card texture
+    function createCardTexture(rarity, emote) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 720; // High res for sharpness
+      const ctx = canvas.getContext('2d');
+
+      const colors = {
+        common: ['#3a3a48', '#2a2a35', '#6a6a7a'],
+        rare: ['#1e3a6e', '#152a50', '#3b82f6'],
+        epic: ['#4c1d6e', '#351450', '#a855f7'],
+        legendary: ['#5c4a1d', '#453810', '#f59e0b'],
+        hidden: ['#ffffff', '#eeeeee', '#ffffff'] // Bright white for mystery
+      };
+
+      const c = colors[rarity] || colors.common;
+
+      // Background Gradient
+      const grd = ctx.createLinearGradient(0, 0, 512, 720);
+      grd.addColorStop(0, c[0]);
+      grd.addColorStop(1, c[1]);
+      ctx.fillStyle = grd;
+
+      // Rounded rect background
+      roundRect(ctx, 10, 10, 492, 700, 40);
+      ctx.fill();
+
+      // PATTERN OVERLAY: Subtle Geometric Shapes
+      ctx.save();
+      ctx.clip(); // Clip pattern to rounded rect
+      ctx.globalAlpha = 0.1; // Very subtle
+      ctx.fillStyle = c[2];
+
+      // Circles pattern
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        // Random positions based on index for deterministic look per redraw
+        const cx = (i * 123) % 512;
+        const cy = (i * 321) % 720;
+        const r = 100 + (i * 30);
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Lines/Stripes
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.05;
+      for (let i = 0; i < 10; i++) {
+        ctx.beginPath();
+        const y = 50 + i * 70;
+        ctx.moveTo(0, y);
+        ctx.lineTo(512, y + 200); // Angled stripes
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Border
+      ctx.lineWidth = 20;
+      ctx.strokeStyle = c[2];
+      ctx.stroke();
+
+      // Glow/Inner Shadow effect
+      ctx.shadowColor = c[2];
+      ctx.shadowBlur = 50;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (rarity === 'hidden') {
+        // Question mark or blank? Let's keep it blank and glowing
+      } else {
+        // Emote
+        ctx.fillStyle = 'white';
+        ctx.font = '180px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; // System emoji font
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emote, 256, 300);
+
+        // Rarity Text
+        ctx.font = 'bold 60px "Fredoka", sans-serif';
+        ctx.fillStyle = c[2]; // Match border color
+        ctx.fillText(rarity.toUpperCase(), 256, 550);
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return tex;
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    // Interactive 3D Card Class
+    // Interactive 3D Card Class (Premium with Thickness)
+    class Card3D {
+      constructor(data, isHidden = false) {
+        this.data = data;
+        this.isHidden = isHidden;
+        this.revealed = !isHidden;
+        this.revealing = false;
+        this.buildupTime = 0;
+
+        // Geometry: Box for thickness! (3.5x5.0 with 0.1 depth)
+        const geo = new THREE.BoxGeometry(3.5 * 1.2, 5 * 1.2, 0.1);
+        this.tex = createCardTexture(isHidden ? 'hidden' : data.rarity, data.emote);
+
+        // Front/Back Material (Texture)
+        const faceMat = new THREE.MeshStandardMaterial({
+          map: this.tex,
+          transparent: true,
+          emissive: new THREE.Color(isHidden ? 0xffffff : RARITY_COLORS[data.rarity]),
+          emissiveIntensity: isHidden ? 0.5 : 0.2,
+          roughness: 0.2, // Foil-like
+          metalness: 0.6
+        });
+
+        // Edge Material (Solid rarity color or Gold)
+        const edgeColor = isHidden ? 0xffd700 : RARITY_COLORS[data.rarity];
+        const edgeMat = new THREE.MeshStandardMaterial({
+          color: edgeColor,
+          emissive: edgeColor,
+          emissiveIntensity: 0.5,
+          roughness: 0.3,
+          metalness: 0.8
+        });
+
+        // Materials array: [Right, Left, Top, Bottom, Front, Back]
+        this.mesh = new THREE.Mesh(geo, [edgeMat, edgeMat, edgeMat, edgeMat, faceMat, faceMat]);
+        this.mesh.userData = { card: this };
+
+        this.targetPos = new THREE.Vector3();
+        this.velocity = new THREE.Vector3();
+        this.wobbleOffset = Math.random() * 100;
+      }
+
+      startReveal() {
+        if (this.revealed || this.revealing) return;
+        this.revealing = true;
+        this.buildupTime = 0;
+      }
+
+      triggerReveal() {
+        this.revealing = false;
+        this.revealed = true;
+        this.isHidden = false;
+
+        // BIG POP
+        this.mesh.scale.setScalar(1.6);
+
+        // EXPLOSION (Rainbow + Legendary)
+        if (glitterSystem) {
+          for (let i = 0; i < 3; i++) glitterSystem.emit(this.mesh.position, 'rainbow');
+          for (let i = 0; i < 6; i++) glitterSystem.emit(this.mesh.position, 'legendary');
+        }
+
+        // Update texture
+        const newTex = createCardTexture(this.data.rarity, this.data.emote);
+        // BoxGeometry materials: indices 4 and 5 are Front/Back
+        this.mesh.material[4].map = newTex;
+        this.mesh.material[5].map = newTex;
+
+        const color = RARITY_COLORS[this.data.rarity];
+        this.mesh.material[4].emissive.setHex(color);
+        this.mesh.material[5].emissive.setHex(color);
+        this.mesh.material[4].emissiveIntensity = 0.5;
+        this.mesh.material[5].emissiveIntensity = 0.5;
+
+        // Update edges too
+        for (let i = 0; i < 4; i++) {
+          this.mesh.material[i].color.setHex(color);
+          this.mesh.material[i].emissive.setHex(color);
+        }
+
+        this.tex.dispose();
+        this.tex = newTex;
+      }
+
+      update(t) {
+        // Face camera
+        this.mesh.lookAt(camera.position);
+
+        if (this.revealing) {
+          // === BUILDUP ===
+          this.buildupTime += 0.016;
+          const progress = Math.min(1, this.buildupTime / 2.0);
+
+          // Harmonic Shake (Smoother)
+          const shakeSpeed = 10 + progress * 30;
+          const shakeAmp = 0.05 + progress * 0.2;
+          this.mesh.rotateZ(Math.sin(t * shakeSpeed) * shakeAmp);
+          this.mesh.rotateY(Math.cos(t * shakeSpeed * 1.5) * shakeAmp * 0.5); // 3D shake
+
+          // Grow
+          const scale = 1.0 + progress * 0.3;
+          this.mesh.scale.setScalar(scale);
+
+          // Intensify Glow
+          this.mesh.material[4].emissiveIntensity = 0.5 + progress * 3.0;
+          this.mesh.material[5].emissiveIntensity = 0.5 + progress * 3.0;
+
+          // Particles (during buildup)
+          if (Math.random() < 0.1 + progress * 0.4) {
+            if (glitterSystem) glitterSystem.emit(this.mesh.position, 'rainbow');
+          }
+
+          if (this.buildupTime > 2.0) {
+            this.triggerReveal();
+            document.getElementById('pull-btn').disabled = false;
+          }
+
+        } else if (this.revealed) {
+          // Settle
+          this.mesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+          // Normal wobble
+          this.mesh.rotateZ(Math.sin(t * 2 + this.wobbleOffset) * 0.03);
+
+        } else {
+          // Hidden Idle
+          this.mesh.rotateZ(Math.sin(t * 2 + this.wobbleOffset) * 0.03);
+
+          // Legendary Dynamic Target
+          if (this.isHidden && this.data.rarity === 'legendary') {
+            const angle = state.camAngle;
+            this.targetPos.set(Math.sin(angle) * 20, 0.5, Math.cos(angle) * 20);
+          }
+        }
+
+        this.mesh.position.lerp(this.targetPos, 0.05);
+      }
+    }
+
+    // Global array for 3D cards
+    let cardObjects = [];
+
+    // === INTERACTION ===
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    window.addEventListener('pointerdown', (event) => {
+      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const intersects = raycaster.intersectObjects(cardObjects.map(c => c.mesh));
+
+      if (intersects.length > 0) {
+        const cardObj = intersects[0].object.userData.card;
+        // Verify it's a hidden card and trigger smooth reveal
+        if (cardObj && cardObj.isHidden && !cardObj.revealing && !cardObj.revealed) {
+          cardObj.startReveal();
+        }
+      }
+    });
+
+    // ANIMATION LOOP
+    let lastTime = 0;
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      const deltaTime = (currentTime - lastTime) / 1000;
+      lastTime = currentTime;
+
+      const time = currentTime / 1000;
+
+      // Smooth camera orbit
+      state.camAngle = lerp(state.camAngle, state.targetCamAngle, 0.02);
+      state.camY = lerp(state.camY, state.targetCamY, 0.025);
+      state.camDist = lerp(state.camDist, state.targetCamDist, 0.025);
+
+      // Calculate camera position with orbit
+      const shake = smoothShake(time, state.shakeAmount);
+      const camX = Math.sin(state.camAngle) * state.camDist + shake.x;
+      const camZ = Math.cos(state.camAngle) * state.camDist;
+      const camY = state.camY + shake.y;
+
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(0, 0, 0);
+
+      // Update pulse phase continuously (smooth sine wave)
+      if (pulseActive) {
+        const frequency = pulseBPM / 60;
+        pulsePhase += deltaTime * frequency * Math.PI * 2;
+        if (pulsePhase > Math.PI * 2) pulsePhase -= Math.PI * 2;
+      }
+
+      // Calculate smooth pulse value
+      const pulseValue = pulseActive ? Math.max(0, Math.sin(pulsePhase)) * pulseIntensity : 0;
+
+      // Calculate prismatic time for both core and bloom
+      const prismaticTime = (state.phase === 'spin' || state.phase === 'pulses') ? performance.now() / 1000 : undefined;
+
+      // Update core with prismatic time ONLY during spin/pulse phases
+      if (coreGroup && state.phase !== 'explode' && state.phase !== 'collapse') {
+        updateCore(state.coreSize, state.chroma, pulseValue, state.colorProgress, state.targetColor, prismaticTime);
+      }
+
+      // Update Glitter
+      if (glitterSystem) glitterSystem.update();
+
+      // Update 3D Cards
+      cardObjects.forEach(c => {
+        c.update(time);
+        // Emit glitter if moving fast or is legendary
+        const speed = c.mesh.position.distanceTo(c.targetPos);
+        if (speed > 1 || (c.isHidden && Math.random() < 0.3)) {
+          if (glitterSystem) glitterSystem.emit(c.mesh.position, c.data.rarity);
+        }
+      });
+
+      // Color-changing bloom effect - tint changes with prismatic colors
+      if (prismaticTime !== undefined && (state.chroma > 0.3 || state.phase === 'spin' || state.phase === 'pulses')) {
+        const bloomColorIndex = Math.floor(prismaticTime * 2) % PRISMATIC.length;
+        const bloomTint = new THREE.Color(PRISMATIC[bloomColorIndex]);
+        bloomPass.strength = Math.max(0.8, bloomPass.strength);
+      }
+
+      // Bloom follows pulse gently
+      if (pulseActive) {
+        const targetBloom = 1.2 + pulseValue * 0.4;
+        bloomPass.strength = lerp(bloomPass.strength, targetBloom, 0.08);
+      }
+
+      if (nebulaPoints && state.phase !== 'collapse' && state.phase !== 'explode') {
+        updateNebula(nebulaPoints, state.speed, state.pull);
+      }
+
+      updateEmotes();
+      updateGoldDust();
+
+      if (blackHole) {
+        blackHole.discLayers.forEach((d, i) => d.rotation.z += 0.02 - i * 0.002);
+        if (blackHole.photon) blackHole.photon.rotation.z += 0.03;
+        // Warp ring faces camera but tilted 20 degrees
+        if (blackHole.warpRing) {
+          blackHole.warpRing.lookAt(camera.position);
+          blackHole.warpRing.rotateX(Math.PI / 9);  // 20 degrees
+        }
+        if (blackHole.warpGlow) {
+          blackHole.warpGlow.lookAt(camera.position);
+          blackHole.warpGlow.rotateX(Math.PI / 9);  // 20 degrees
+        }
+      }
+
+      // Standard particle update for ALL phases except explode
+      if (state.phase !== 'explode') {
+        // Calculate elapsed time for particle spawning
+        const elapsedTime = (currentTime - state.animationStartTime) / 1000;
+        rings.forEach(r => r.update(state.speed, state.pull, elapsedTime));
+
+        // ROTATE and SPEED UP particles during spin AND pulse phases (full chromatic)
+        // Start early so particles reach max speed before black hole
+        if (state.phase === 'spin' || state.phase === 'pulses') {
+          rings.forEach(r => {
+            r.mesh.rotation.x = lerp(r.mesh.rotation.x, Math.PI / 9, 0.003);
+          });
+          // Speed up particles - more aggressive to reach max speed during chromatic
+          state.speed += 0.025;  // Higher to compensate for removed black hole multipliers
+        }
+
+        // Smooth continuous camera push throughout animation
+        // Higher lerp rate for constant zoom, not crash zoom at end
+        if (state.phase !== 'collapse' && state.phase !== 'explode') {
+          state.targetCamY = lerp(state.targetCamY, 4, 0.003);  // 3x faster for constant push
+          state.targetCamDist = lerp(state.targetCamDist, 50, 0.003);  // Constant zoom in
+        }
+      } else if (state.phase === 'explode') {
+        state.explodeTime += 0.016;
+        rings.forEach(r => r.explode(state.explodeTime));
+      }
+
+      state.shakeAmount *= 0.985;
+
+      composer.render();
+    }
+
+    // INIT
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('pull-btn').disabled = false;
+    document.getElementById('skip-btn').addEventListener('click', () => { skip = true; });
+    document.getElementById('pull-btn').addEventListener('click', doPull);
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate(0);
+    console.log('✦ SUPERNOVA 3D ✦ Ready');
+  </script>
+</body>
+
+</html>
