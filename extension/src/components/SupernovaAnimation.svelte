@@ -451,6 +451,49 @@
     `
   };
 
+  // Background torus portal shader
+  const torusVertexShader = `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    
+    void main() {
+      vUv = uv;
+      vNormal = normalize(normalMatrix * normal);
+      vPosition = position;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const torusFragmentShader = `
+    uniform vec3 glowColor;
+    uniform float glowIntensity;
+    uniform float time;
+    uniform float opacity;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    void main() {
+      // Fresnel effect for edge glow
+      vec3 viewDir = normalize(cameraPosition - vPosition);
+      float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.5);
+      
+      // Animated glow pulsing
+      float pulse = sin(time * 1.5) * 0.15 + 1.0;
+      
+      // Radial glow intensity based on UV
+      float radial = 1.0 - length(vUv - 0.5) * 1.5;
+      radial = max(0.0, radial);
+      
+      // Combine effects
+      vec3 color = glowColor * glowIntensity * pulse * (0.5 + fresnel * 2.0);
+      color *= radial * 2.0;
+      
+      gl_FragColor = vec4(color, opacity * radial * (0.3 + fresnel * 0.7));
+    }
+  `;
+
   const EMOTES = ['😀', '😎', '🔥', '💜', '⭐', '🎮', '💎', '🌟', '✨', '🚀', '💫', '🎨', '💖', '🌈', '⚡', '🔮', '👑'];
   const RARITY_COLORS = { common: 0x9ca3af, rare: 0x3b82f6, epic: 0xa855f7, legendary: 0xf59e0b };
   const CHROMATIC = [0xff6b6b, 0xfeca57, 0x48dbfb, 0xff9ff3, 0x54a0ff, 0x5f27cd, 0x00d2d3];
